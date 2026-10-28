@@ -1,0 +1,45 @@
+/* 색 배치 고르기(2026-10-27). data/site.csv 의 '색 배치' 칸이 '기본'이 아닐 때만 화면에 붙는다.
+   '기본'(남색 · 미색 · 금색)은 site.css 맨 위 값 그대로이고 이 파일은 읽지 않는다.
+   디자인 1회차부터 site.css 는 색을 모두 이름 붙인 값으로 쓰므로, 여기서는 그 값만 바꾼다.
+   신뢰: 짙은 남색 · 차가운 연회색 · 맑은 파랑 / 고급: 숯색 · 따뜻한 미색 · 청동
+   (참고: 디자인 작업공간 notes/2026-10-27_ref_분위기별_색). 글자는 모두 바탕과 4.5:1 이상. */
+
+html[data-palette="trust"] {
+  --bg: #f0f2f6;
+  --paper: #ffffff;
+  --ink: #122f4d;
+  --navy: #122f4d;
+  --navy-deep: #0b1f36;
+  --navy-hover: #1b416b;
+  --sub: #56617a;
+  --line: #dbe0e8;
+  --field: #858d9f;        /* 입력칸 테두리(흰 바탕과 3.3:1) */
+  --tint: #e8eef7;         /* 알림 · 꼬리표 · 마우스 올림 바탕 */
+  --gold: #377cd5;         /* 강조색: 선 · 바로가기 · 남색 위 초점 */
+  --gold-deep: #23599f;    /* 밝은 바탕 위 강조 선 · 큰 글자 */
+  --gold-tint: #b9d3f3;    /* 첫 화면 사진 위 작은 줄 */
+  --gold-tint-hover: #d7e7fb;
+  --on-navy-sub: #c2cede;
+  --select: rgba(55, 124, 213, .25);
+  --shade: 8, 18, 36;      /* 첫 화면 사진 덮개(어두운 남색) */
+}
+
+html[data-palette="luxe"] {
+  --bg: #efebe2;
+  --paper: #fbf9f5;
+  --ink: #1f1a18;
+  --navy: #1f1a18;
+  --navy-deep: #151110;
+  --navy-hover: #3a322e;
+  --sub: #5f574f;
+  --line: #dbd3c5;
+  --field: #8e8881;        /* 입력칸 테두리(카드 바탕과 3.3:1) */
+  --tint: #e6dfd1;
+  --gold: #a6885b;
+  --gold-deep: #765a31;
+  --gold-tint: #d9c39a;
+  --gold-tint-hover: #eedcb7;
+  --on-navy-sub: #cdc5b8;
+  --select: rgba(166, 136, 91, .3);
+  --shade: 20, 16, 14;     /* 첫 화면 사진 덮개(숯색) */
+}

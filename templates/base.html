@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ lang }}"{{ palette_attr }}>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+{{ head_extra }}
+<link rel="icon" href="{{ favicon }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ fonts }}">
+<link rel="stylesheet" href="{{ css }}">{{ palette_css }}
+<noscript><link rel="stylesheet" href="{{ nojs_css }}"></noscript>
+{{ data_block }}
+{{ scripts }}
+</head>
+<body class="{{ body_class }}">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<header class="{{ header_class }}">
+  <div class="hdr-in">
+    <a class="brand" href="{{ home }}">
+      <svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><rect x=".7" y=".7" width="46.6" height="46.6" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="24" y="30.5" text-anchor="middle" font-family="MaruBuri, serif" font-weight="600" font-size="15" letter-spacing="1" fill="currentColor">HEP</text></svg>
+      <span><b>{{ brand_name }}</b><small>{{ brand_en }}</small></span>
+    </a>
+    <button type="button" class="menu-btn" aria-expanded="false" aria-controls="nav-list"><span class="menu-ico" aria-hidden="true"></span><span class="menu-txt">메뉴</span></button>
+    <nav aria-label="주 메뉴"><ul id="nav-list" class="nav-list">{{ nav }}</ul></nav>
+  </div>
+</header>
+<main id="main" class="{{ main_class }}">
+{{ band }}
+{{ body }}
+</main>
+<div class="aff">
+  <img src="{{ aff_ko }}" alt="서울대학교 보건대학원" width="136" height="38">
+  <img src="{{ aff_snu }}" alt="서울대학교" width="165" height="38">
+</div>
+<footer class="foot">
+  <div class="foot-in">
+    <span>{{ foot_name }}</span>
+    <span>{{ foot_addr }} {{ foot_mail }}</span>
+    <span class="foot-links"><a href="{{ privacy }}">개인정보 처리방침</a> · <a href="{{ credits }}">사진 출처</a> · © {{ year }}</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,10 @@
+/* 자바스크립트를 끈 브라우저에서만 읽는 꾸밈(공통 틀 머리의 <noscript>, 디자인 4회차 2026-10-28).
+   휴대폰 메뉴 단추 · 아래 메뉴 열기 단추 · 첫 화면 사진 넘김 단추는 자바스크립트가 있어야 움직이므로 숨기고,
+   좁은 화면에서는 메뉴를 펼친 채로 보인다(첫 화면은 첫 장면만 보인다). 자바스크립트가 켜져 있으면 이 파일은 읽지 않는다 */
+.menu-btn, .sub-toggle, .hero .arw, .slide-pause, .count { display: none; }
+@media (max-width: 1040px) {
+  .hdr--over { position: relative; }
+  .hdr { background: var(--navy); }
+  .nav-list { display: flex; }
+  .nav-list .has-sub .sub, .nav-list .has-sub:hover .sub, .nav-list .has-sub:focus-within .sub { display: block; }
+}

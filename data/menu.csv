@@ -1,0 +1,13 @@
+이름,주소,위
+연구실,/about/,
+소개,/about/,연구실
+연구 분야,/research/,연구실
+수행연구,/research/projects/,연구실
+교수,/professor/,
+교과목,/courses/,
+구성원,/people/,
+졸업생,/alumni/,
+소식,/news/,
+게시판 메뉴 자리,@게시판,
+회원,/lab/,
+EN,/en/,

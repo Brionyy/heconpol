@@ -1,0 +1,7 @@
+# 바깥 부품(저장소 안에 복사, 바깥 주소에서 부르지 않음). 받은 날 2026-10-24, npm 등록소.
+# 판을 바꿀 때: 새 판을 받고 이 표의 판 · 지문(sha384)을 고친다.
+파일 | 꾸러미@판 | 꾸러미 안 위치 | 지문
+purify.min.js | dompurify@3.4.17 | dist/purify.min.js | sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx
+marked.umd.js | marked@18.1.1 | lib/marked.umd.js | sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI
+supabase.js | @supabase/supabase-js@2.117.3 | dist/umd/supabase.js | sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R
+cobe.esm.js | cobe@2.0.1 | dist/index.esm.js | sha384-rPeLIsPaCGXcrSCIX4lUqdfteCazOJRYIiUliZC+5v78XiDvfoE3b67Ib8onHipy

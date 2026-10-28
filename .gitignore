@@ -1,0 +1,44 @@
+# 이 폴더(site/)가 공개 저장소의 맨 위다. 2_보안검토.md 4절 초안을 따른다.
+
+# 비밀 값
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+supabase/.temp/
+supabase/.branches/
+
+# 회원 자료 · 옛 DB · 백업(실수로라도 올라가지 않게)
+private/
+migration/raw/
+backup/
+*.sql
+!supabase/migrations/*.sql
+!supabase/seed_fake.sql
+*.sql.gz
+*.dump
+*.zip
+*.7z
+members*.csv
+members*.tsv
+# 사이트를 만들 때 서버에서 받는 '회원이 적은 CV 주소'(build.py --fetch-cv, 그때그때 새로 받음)
+data/_member_cv.json
+
+# 내부 문서(공개 저장소에 두지 않음)
+docs/
+design_ref/
+CLAUDE.md
+
+# 만든 결과(GitHub이 공개할 때 다시 만든다)
+_site/
+
+# 기기 파일
+.DS_Store
+*.icloud
+node_modules/
+__pycache__/
+
+# iCloud 겹친 사본('index 2.html' · 'assets 3' · 'people 2.csv'). 원본과 비교해 고침을 옮긴 뒤 휴지통으로
+* [0-9]
+* [0-9].*
