@@ -492,7 +492,8 @@ class Site:
     def __init__(self, local, palette=None):
         self.local = local
         self.cfg = read_settings()
-        self.base = self.cfg.get("기본 경로", "").rstrip("/")
+        # 미리 보기(--local)는 이 컴퓨터 주소(localhost) 맨 위에서 열므로 기본 경로를 쓰지 않는다(11-13 임시 주소 /heconpol)
+        self.base = "" if local else self.cfg.get("기본 경로", "").rstrip("/")
         name = (palette or self.cfg.get("색 배치", "") or "기본").strip()
         if name not in PALETTES:
             raise BuildError(f"data/site.csv '색 배치' 칸의 '{name}'을 모릅니다. 쓸 수 있는 이름: {', '.join(PALETTES)}")
