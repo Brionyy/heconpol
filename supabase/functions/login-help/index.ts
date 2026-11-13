@@ -13,6 +13,10 @@
 //   같은 비밀번호를 bcrypt 로 저장 · 상태 정상 · 옛 값 지움. 새 비밀번호 규칙(8자 · 영문+숫자)에 안 맞아도 받는다(연구자 뜻: 그대로 쓰기).
 //   틀림 · 없는 계정 · 옛 값 없음 · 틀린 횟수 한도(계정마다 15분에 5번, 전체 한 시간 100번) 넘음은 모두 같은 답 { ok: true, retry: false }를
 //   0.9초 뒤에 준다(누가 회원인지 드러나지 않게). 비밀번호는 기록에 남기지 않는다. 규칙: migrations/20261113000000_legacy_password.sql
+// - login(2026-11-13): 아이디로 로그인. 화면은 메일을 모르므로 서버가 아이디 → 메일을 안에서 찾아(login_email_for) 로그인 서비스에
+//   비밀번호로 묻고, 틀리면 옛 비밀번호 확인(legacy_login 과 같음)을 한 번 거친 뒤 다시 묻는다. 맞을 때만 로그인 열쇠
+//   { access_token, refresh_token }을 돌려준다. 없는 아이디 · 틀린 비밀번호 · 잠긴 계정은 모두 같은 답 { ok: true, session: null }을
+//   0.9초 뒤에 준다. 메일 주소는 답에 넣지 않는다.
 import { HttpError, SECRET_KEY, SITE_ORIGIN, SITE_URL, SUPABASE_URL, atLeast, handlerOf, inBackground, pause, rpc, sha256Hex } from '../_shared/common.ts';
 import { phpassCheck } from '../_shared/phpass.ts';
 
@@ -34,6 +38,26 @@ async function legacyLogin(login: string, password: string): Promise<boolean> {
     return false;
   }
   return (await rpc<boolean>('legacy_login_finish', { p_user: row.user_id, p_password: password })) === true;
+}
+
+// 로그인 서비스에 메일 · 비밀번호로 묻는다. 맞으면 열쇠 둘, 아니면 null
+const PUBLIC_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? SECRET_KEY;
+async function passwordGrant(email: string, password: string): Promise<{ access_token: string; refresh_token: string } | null> {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST', headers: { apikey: PUBLIC_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ email, password }),
+  });
+  if (!r.ok) return null;
+  const j = await r.json().catch(() => null);
+  return j && j.access_token && j.refresh_token ? { access_token: String(j.access_token), refresh_token: String(j.refresh_token) } : null;
+}
+
+async function usernameLogin(login: string, password: string) {
+  const email = await rpc<string | null>('login_email_for', { login });
+  if (!email) return null;
+  const first = await passwordGrant(email, password);
+  if (first) return first;
+  if (!(await legacyLogin(login, password))) return null;
+  return await passwordGrant(email, password);
 }
 
 async function sendLinkFor(login: string): Promise<void> {
@@ -107,6 +131,18 @@ export const handle = handlerOf(async (_req, body) => {
       return false;
     }));
     return done ? { ok: true, retry: true } : { ok: true, retry: false };
+  }
+
+  if (action === 'login') {
+    const login = String(body.login ?? '').trim().toLowerCase().slice(0, 120);
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!login || !password) throw new HttpError(400, '아이디와 비밀번호를 적어 주십시오.');
+    // 메일은 화면이 로그인 서비스에 바로 묻는다(아이디만 여기서). 메일을 넣었으면 늘 같은 실패 답
+    const session = login.includes('@') ? await atLeast(900, Promise.resolve(null)) : await atLeast(900, usernameLogin(login, password).catch((e) => {
+      console.error('아이디 로그인 실패', e instanceof Error ? e.message : String(e));   // 서버 원문만, 비밀번호 없음
+      return null;
+    }));
+    return { ok: true, session };
   }
 
   throw new HttpError(400, '모르는 일입니다.');

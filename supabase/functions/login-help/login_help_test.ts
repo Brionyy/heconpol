@@ -1,4 +1,4 @@
-// login-help 의 legacy_login(옛 비밀번호 그대로 첫 로그인, 2026-11-13) 시험. 진짜 서버 대신 이 시험 안의 흉내(메모리)로 돌린다.
+// login-help 의 legacy_login(옛 비밀번호 그대로 첫 로그인) · login(아이디로 로그인, 2026-11-13) 시험. 진짜 서버 대신 이 시험 안의 흉내(메모리)로 돌린다.
 // 돌리기(site/ 에서): deno test --no-config -A supabase/functions/login-help/login_help_test.ts
 // 옛 값은 hashcat 공개 예시 값('$P$984478476IagS59wHZvyQMArzfx58u.' = 'hashcat')이다. 진짜 회원 값 아님.
 Deno.env.set('SUPABASE_URL', 'https://sb.test');
@@ -12,18 +12,29 @@ let legacy: Record<string, string> = {};   // user_id → 옛 값
 let failures: string[] = [];
 let finished: { user: string; password: string }[] = [];
 const calls: string[] = [];
+// 로그인 서비스 흉내: 메일 → 비밀번호(옮겨 온 회원은 처음에 없음), 아이디 → 메일
+let passwords: Record<string, string> = {};
+const EMAILS: Record<string, string> = { test_oldmember: 'old@example.test', test_member: 'member@example.test' };
 function reset() {
   legacy = { [OLD_ID]: LEGACY };
+  passwords = { 'member@example.test': 'Member-test-2026' };
   failures = []; finished = []; calls.length = 0;
 }
 
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
   const body = JSON.parse(String(init?.body ?? '{}'));
+  const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
+  if (url === 'https://sb.test/auth/v1/token?grant_type=password') {
+    calls.push('token');
+    return passwords[body.email] !== undefined && passwords[body.email] === body.password
+      ? json({ access_token: 'at-' + body.email, refresh_token: 'rt-1', token_type: 'bearer' })
+      : json({ error: 'invalid_grant', error_description: 'Invalid login credentials' }, 400);
+  }
   const m = url.match(/\/rest\/v1\/rpc\/(\w+)$/);
   if (!m) throw new Error('모르는 주소 ' + url);
   calls.push(m[1]);
-  const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
+  if (m[1] === 'login_email_for') return json(EMAILS[body.login] ?? null);
   if (m[1] === 'legacy_password_for') {
     const known = body.p_login === 'test_oldmember' || body.p_login === 'old@example.test';
     const blocked = failures.filter((u) => u === OLD_ID).length >= 5;
@@ -33,6 +44,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
   if (m[1] === 'legacy_login_finish') {
     finished.push({ user: body.p_user, password: body.p_password });
     delete legacy[body.p_user];
+    passwords['old@example.test'] = body.p_password;
     return json(true);
   }
   throw new Error('모르는 함수 ' + m[1]);
@@ -88,4 +100,46 @@ Deno.test('빈 칸은 400, 다른 사이트에서 부르면 403', async () => {
   }));
   same(r.status, 403, '다른 사이트');
   same(calls.length, 0, '서버 함수 부름');
+});
+
+// ---------------------------------------------------------------- 아이디 로그인(login)
+const NO_SESSION = { ok: true, session: null };
+
+Deno.test('아이디 로그인: 없는 아이디 · 틀린 비밀번호 · 메일을 넣음은 모두 같은 답, 0.9초 뒤, 메일을 답에 넣지 않음', async () => {
+  reset();
+  const a = await call({ action: 'login', login: 'nobody', password: 'Member-test-2026' });
+  const b = await call({ action: 'login', login: 'test_member', password: 'wrong-1234' });
+  const c = await call({ action: 'login', login: 'member@example.test', password: 'Member-test-2026' });
+  same(a.json, NO_SESSION, '없는 아이디'); same(b.json, NO_SESSION, '틀린 비밀번호'); same(c.json, NO_SESSION, '메일을 넣음');
+  same([a.status, b.status, c.status], [200, 200, 200], '상태');
+  for (const x of [a, b, c]) if (x.ms < 880) throw new Error(`답이 너무 빠름 ${x.ms.toFixed(0)}ms`);
+  if (JSON.stringify([a.json, b.json, c.json]).includes('@')) throw new Error('답에 메일이 들어감');
+});
+
+Deno.test('아이디 로그인: 맞는 비밀번호면 로그인 열쇠, 옛 값 확인은 하지 않음', async () => {
+  reset();
+  const r = await call({ action: 'login', login: ' Test_Member ', password: 'Member-test-2026' });
+  same(r.json, { ok: true, session: { access_token: 'at-member@example.test', refresh_token: 'rt-1' } }, '열쇠');
+  same(calls.includes('legacy_password_for'), false, '옛 값 확인');
+});
+
+Deno.test('아이디 로그인: 옮겨 온 회원은 옛 비밀번호로 첫 로그인(새 방식 저장 뒤 열쇠), 다음부터는 바로', async () => {
+  reset();
+  const r = await call({ action: 'login', login: 'test_oldmember', password: 'hashcat' });
+  same(r.json, { ok: true, session: { access_token: 'at-old@example.test', refresh_token: 'rt-1' } }, '첫 로그인');
+  same(finished, [{ user: OLD_ID, password: 'hashcat' }], '새 방식 저장');
+  calls.length = 0;
+  const again = await call({ action: 'login', login: 'test_oldmember', password: 'hashcat' });
+  same(again.json.session?.access_token, 'at-old@example.test', '두 번째');
+  same(calls, ['login_email_for', 'token'], '두 번째는 옛 값 확인 없이');
+  const wrong = await call({ action: 'login', login: 'test_oldmember', password: 'hashcat2' });
+  same(wrong.json, NO_SESSION, '그 뒤 틀린 비밀번호');
+});
+
+Deno.test('아이디 로그인: 옛 비밀번호가 틀리면 같은 답, 틀린 횟수 기록', async () => {
+  reset();
+  const r = await call({ action: 'login', login: 'test_oldmember', password: 'nothashcat' });
+  same(r.json, NO_SESSION, '틀림');
+  same(failures, [OLD_ID], '틀린 횟수');
+  same((await call({ action: 'login', login: 'test_member' })).status, 400, '비밀번호 없음');
 });

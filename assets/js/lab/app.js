@@ -310,8 +310,14 @@
     L.setStatus('');
     var q = L.params();
     var token = q.get('token_hash') || '';
+    // 진짜 서버의 기본 메일 틀(무료판, 11-13)은 링크 열쇠를 주소 뒤(#access_token=...&type=recovery)에 붙인다. 읽고 주소에서 지운다
+    var hp = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+    if (L.cfg.backend === 'supabase' && hp.get('type') === 'recovery' && /^[\w.-]{20,4000}$/.test(hp.get('access_token') || '') && /^[\w-]{6,400}$/.test(hp.get('refresh_token') || '')) {
+      token = { access_token: hp.get('access_token'), refresh_token: hp.get('refresh_token') };
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* 그대로 */ }
+    }
     // 어떤 링크든 같은 글(10-28 설계서 8절)
-    if (!/^[A-Za-z0-9_-]{16,200}$/.test(token) || q.get('type') !== 'recovery') { L.append(root, [L.fakeBadge(), badLink()]); return; }
+    if (typeof token !== 'object' && (!/^[A-Za-z0-9_-]{16,200}$/.test(token) || q.get('type') !== 'recovery')) { L.append(root, [L.fakeBadge(), badLink()]); return; }
     var msg = h('div');
     var p1 = h('input', { type: 'password', autocomplete: 'new-password', required: true, maxlength: 200 });
     var btn = h('button', { type: 'submit', class: 'btn' }, '새 비밀번호로 정하기');
@@ -661,7 +667,8 @@
       dirty = true; drawFiles();
       if (errors.length) msg.replaceChildren(L.notice(errors.join(' / '), 'error'));
     }
-    if (fileIn) fileIn.addEventListener('change', function () { addFiles(fileIn.files); fileIn.value = ''; });
+    // 고른 파일 목록을 먼저 배열로 옮긴 뒤 칸을 비운다(칸을 비우면 브라우저가 같은 목록을 비워 첨부가 빈 파일로 올라감, 11-13 진짜 서버 시험)
+    if (fileIn) fileIn.addEventListener('change', function () { var picked = Array.prototype.slice.call(fileIn.files); fileIn.value = ''; addFiles(picked); });
     drawFiles();
 
     // ---- 저장 상태: 'n분 전 저장됨'(위 줄 오른쪽)

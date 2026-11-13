@@ -1822,6 +1822,13 @@ a.mem-who:hover .mem-name { text-decoration: underline; text-decoration-color: v
 .mfa-steps li:last-child::after { display: none; }
 .mfa-steps b { line-height: 40px; font-weight: 600; }
 .mfa-steps span { grid-column: 2; color: var(--sub); font-size: var(--fs-meta); }
+.mfa-real { margin-top: var(--sp-5); }
+.mfa-qr { display: inline-block; padding: var(--sp-3); background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.mfa-qr img { display: block; width: 200px; height: 200px; }
+.mfa-secret { margin: var(--sp-3) 0 0; color: var(--sub); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+.mfa-secret code { color: var(--ink); letter-spacing: .04em; }
+.mfa-form { margin-top: var(--sp-4); max-width: 320px; }
+.mfa-code { font-size: 1.4em; letter-spacing: .3em; font-variant-numeric: tabular-nums; }
 
 /* ---------- 좁은 화면 */
 @media (max-width: 1040px) {

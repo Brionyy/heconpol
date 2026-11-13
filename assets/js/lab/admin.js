@@ -215,6 +215,15 @@
       try { await api.registerMfa(); L.btnState(b, 'done'); flash('인증 앱을 등록했습니다(시험). 이제 관리 화면을 씁니다.'); await wait(360); location.reload(); }
       catch (err) { L.btnState(b, null); showError(null, err); }
     } }, '시험: 인증 앱을 등록한 것으로 하기') : null;
+    // 진짜 서버(11-13): 이미 등록했으면 6자리만, 아니면 [QR 만들기] → QR · 열쇠 글 → 6자리
+    var real = !fake() ? realMfa(api, me) : null;
+    if (real && me.factor_id) {
+      root.appendChild(h('section', { class: 'mfa-card glow-host' },
+        h('div', { class: 'mfa-head' }, h('span', { class: 'mfa-lock', 'aria-hidden': 'true' }),
+          h('div', {}, title('h2', 'mfa-h', '인증 앱의 6자리 숫자를 넣어 주십시오'),
+            h('p', { class: 'mfa-lead' }, '관리 화면은 로그인할 때마다 휴대폰 인증 앱의 숫자로 한 번 더 확인합니다.'))), real));
+      return;
+    }
     root.appendChild(h('section', { class: 'mfa-card glow-host' },
       h('div', { class: 'mfa-head' }, h('span', { class: 'mfa-lock', 'aria-hidden': 'true' }),
         h('div', {}, title('h2', 'mfa-h', '먼저 2단계 인증을 등록합니다'),
@@ -224,9 +233,43 @@
         h('li', {}, h('b', {}, '인증 앱 깔기'), h('span', {}, 'Google · Microsoft Authenticator 등')),
         h('li', {}, h('b', {}, '네모 무늬(QR) 찍기')),
         h('li', {}, h('b', {}, '6자리 넣기')),
-        h('li', {}, h('b', {}, '복구 코드 적기'), h('span', {}, '종이에 적어 연구실에 둡니다(휴대폰을 잃었을 때 씀).'))),
-      go1 ? h('div', { class: 'btns' }, go1) : h('p', { class: 'muted' }, '진짜 서버를 연결한 뒤 이 자리에 QR이 나옵니다.')));
+        real ? h('li', {}, h('b', {}, '열쇠 글 적기'), h('span', {}, 'QR 아래 열쇠 글을 종이에 적어 연구실에 둡니다(휴대폰을 잃었을 때 다른 휴대폰에 다시 넣음).'))
+          : h('li', {}, h('b', {}, '복구 코드 적기'), h('span', {}, '종이에 적어 연구실에 둡니다(휴대폰을 잃었을 때 씀).'))),
+      go1 ? h('div', { class: 'btns' }, go1) : real));
     if (fake() && window.LabFakeApi) root.appendChild(resetButton(false));
+  }
+  // 진짜 서버의 인증 앱 등록 · 확인 칸. factor_id 가 있으면 6자리만, 없으면 QR 부터
+  function realMfa(api, me) {
+    var box = h('div', { class: 'mfa-real' });
+    var place = h('div');
+    function codeForm(factorId) {
+      var inp = h('input', { type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, pattern: '[0-9]*', class: 'mfa-code', 'aria-label': '인증 앱의 6자리 숫자' });
+      var ok = h('button', { type: 'submit', class: 'btn' }, '확인');
+      var form = h('form', { class: 'form mfa-form', novalidate: true }, h('label', {}, '인증 앱의 6자리 숫자', inp), h('div', { class: 'btns' }, ok), place);
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        L.btnState(ok, 'run');
+        try { await api.verifyMfa(factorId, inp.value); L.btnState(ok, 'done'); flash('2단계 인증을 마쳤습니다.'); await wait(300); location.reload(); }
+        catch (err) { L.btnState(ok, null); showError(null, err, place); inp.value = ''; inp.focus(); }
+      });
+      setTimeout(function () { inp.focus(); }, 0);
+      return form;
+    }
+    if (me.factor_id) { box.appendChild(codeForm(me.factor_id)); return box; }
+    var start = h('button', { type: 'button', class: 'btn' }, 'QR 만들기');
+    start.addEventListener('click', async function () {
+      L.btnState(start, 'run');
+      try {
+        var r = await api.registerMfa();
+        box.replaceChildren(
+          h('div', { class: 'mfa-qr' }, h('img', { src: r.qr, alt: '인증 앱으로 찍을 QR', width: 200, height: 200 })),
+          h('p', { class: 'mfa-secret' }, '찍히지 않으면 인증 앱에 이 열쇠 글을 직접 넣습니다: ', h('code', {}, r.secret)),
+          codeForm(r.factor_id));
+      } catch (err) { L.btnState(start, null); showError(null, err, place); }
+    });
+    box.appendChild(h('div', { class: 'btns' }, start));
+    box.appendChild(place);
+    return box;
   }
 
   // ------------------------------------------------------------ 할 일
