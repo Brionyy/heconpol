@@ -7,7 +7,7 @@
 //   신청을 지우고 → 옛 계정 메일을 신청 메일로 바꾸고 → 옛 메일에 알리고 → 새 메일로 링크를 보낸다. 다른 길 본인 확인은 받지 않는다.
 // - approve(11-02 밤): 가입 승인(rpc admin_approve) 뒤 그 회원 메일로 '회원가입이 승인되었습니다' + 로그인 주소. 메일을 못 보내도 승인은 남음(mailed: false).
 // 모두 2단계 인증을 마친 관리자만.
-import { HttpError, SECRET_KEY, SITE_ORIGIN, SUPABASE_URL, insertRow, requireAdmin, rpc, selectRows, sendNotice, handlerOf } from '../_shared/common.ts';
+import { HttpError, SECRET_KEY, SITE_ORIGIN, SITE_URL, SUPABASE_URL, insertRow, requireAdmin, rpc, selectRows, sendNotice, handlerOf } from '../_shared/common.ts';
 
 const METHODS = ['연구실이 아는 번호로 전화', '연구실이 아는 메신저', '교수님 확인', '동기 · 선후배 확인', '직접 만남'];
 const EMAIL = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
@@ -85,14 +85,14 @@ export const handle = handlerOf(async (req, body) => {
       await authAdmin(`/users/${target}`, { method: 'PUT', body: JSON.stringify({ email: fresh, email_confirm: true }) });
       await insertRow('admin_log', { admin_id: me.id, action: '가입 신청을 기존 계정과 연결', target, detail: `메일 바꿈 · 확인 방법: 신청서의 기존 아이디(${p.username} 신청)` });
       if (before && before.toLowerCase() !== fresh) await sendNotice(before, '계정 메일이 바뀌었습니다', `새 메일로 들어온 가입 신청을 이 계정(아이디 ${o.username})에 연결했습니다. 본인이 요청하지 않았다면 연구실 조교에게 바로 알려 주십시오.`);
-      await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_ORIGIN + '/login/reset/')}`, {
+      await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_URL + '/login/reset/')}`, {
         method: 'POST', headers: { apikey: SECRET_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ email: fresh }),
       });
       return { ok: true };
     }
     const mail = String(old?.email ?? '');
     if (!mail) throw new HttpError(400, '기존 계정에 메일이 없습니다. 연구실이 아는 연락처로 본인임을 확인한 뒤 회원 탭에서 메일을 바꾸고 링크를 보내 주십시오.');
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_ORIGIN + '/login/reset/')}`, {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_URL + '/login/reset/')}`, {
       method: 'POST', headers: { apikey: SECRET_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ email: mail }),
     });
     if (!r.ok) throw new HttpError(429, '링크를 보내지 못했습니다(조금 전에 보냈거나 메일 한도). 신청은 그대로 두었습니다. 10분 뒤 다시 해 주십시오.');
@@ -110,7 +110,7 @@ export const handle = handlerOf(async (req, body) => {
     if (!mail) return { ok: true, mailed: false };
     try {
       await sendNotice(mail, '회원가입이 승인되었습니다',
-        `보건정치경제연구실 홈페이지 회원가입이 승인되었습니다. 이 메일 주소(또는 아이디 ${p?.username ?? ''})와 가입 때 정한 비밀번호로 로그인하십시오.\n\n로그인: ${SITE_ORIGIN}/login/`);
+        `보건정치경제연구실 홈페이지 회원가입이 승인되었습니다. 이 메일 주소(또는 아이디 ${p?.username ?? ''})와 가입 때 정한 비밀번호로 로그인하십시오.\n\n로그인: ${SITE_URL}/login/`);
     } catch (_e) { return { ok: true, mailed: false }; }
     return { ok: true, mailed: true };
   }

@@ -501,7 +501,8 @@ class Site:
         self.menu = board_menu(read_table("menu", ["이름", "주소"]), read_boards())
         self.template = (ROOT / "templates" / "base.html").read_text(encoding="utf-8")
         backend = self.cfg.get("회원 칸 서버", "").strip()
-        self.supabase = backend if backend.startswith("https://") else ""
+        # 미리 보기(--local)는 서버 주소가 있어도 늘 시험용 가짜 로그인으로 만든다(진짜 회원 자료에 붙지 않게, 11-13 서버 연결)
+        self.supabase = backend if backend.startswith("https://") and not local else ""
         if not local and not self.supabase:
             print("알림: '회원 칸 서버' 주소가 없어 회원 칸은 '준비 중'으로 보입니다.", file=sys.stderr)
         self.pages = []

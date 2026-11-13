@@ -13,14 +13,14 @@
 //   같은 비밀번호를 bcrypt 로 저장 · 상태 정상 · 옛 값 지움. 새 비밀번호 규칙(8자 · 영문+숫자)에 안 맞아도 받는다(연구자 뜻: 그대로 쓰기).
 //   틀림 · 없는 계정 · 옛 값 없음 · 틀린 횟수 한도(계정마다 15분에 5번, 전체 한 시간 100번) 넘음은 모두 같은 답 { ok: true, retry: false }를
 //   0.9초 뒤에 준다(누가 회원인지 드러나지 않게). 비밀번호는 기록에 남기지 않는다. 규칙: migrations/20261113000000_legacy_password.sql
-import { HttpError, SECRET_KEY, SITE_ORIGIN, SUPABASE_URL, atLeast, handlerOf, inBackground, pause, rpc, sha256Hex } from '../_shared/common.ts';
+import { HttpError, SECRET_KEY, SITE_ORIGIN, SITE_URL, SUPABASE_URL, atLeast, handlerOf, inBackground, pause, rpc, sha256Hex } from '../_shared/common.ts';
 import { phpassCheck } from '../_shared/phpass.ts';
 
 const SAME_ANSWER = { ok: true };
 const KINDS = ['재학', '졸업', '교수', '기타'];
 
 async function recover(email: string): Promise<void> {
-  await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_ORIGIN + '/login/reset/')}`, {
+  await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(SITE_URL + '/login/reset/')}`, {
     method: 'POST', headers: { apikey: SECRET_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ email }),
   });
 }

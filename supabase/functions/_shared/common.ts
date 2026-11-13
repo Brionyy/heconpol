@@ -8,6 +8,8 @@ export const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 // 새 비밀 열쇠(sb_secret_...)가 먼저, 없으면 옛 이름(2026년 말 폐지 예정, 2_보안검토.md)
 export const SECRET_KEY = Deno.env.get('SUPABASE_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 export const SITE_ORIGIN = Deno.env.get('SITE_ORIGIN') ?? 'https://heconpol.org';
+// 메일 링크의 사이트 주소. 임시 주소(https://brionyy.github.io/heconpol)처럼 하위 경로에 있으면 SITE_BASE=/heconpol (2026-11-13)
+export const SITE_URL = SITE_ORIGIN + (Deno.env.get('SITE_BASE') ?? '').replace(/\/+$/, '');
 
 export class HttpError extends Error {
   status: number;

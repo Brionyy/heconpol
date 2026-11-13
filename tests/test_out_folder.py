@@ -68,7 +68,9 @@ class OutFolderTest(unittest.TestCase):
             self.assertTrue((out / "assets/js/lab/api-fake.js").exists())
             self.assertEqual(build_into(out, local=False)[0], 0)
             self.assertFalse((out / "assets/js/lab/api-fake.js").exists())
-            self.assertIn('"backend": "none"', (out / "assets/js/lab/config.js").read_text(encoding="utf-8"))
+            cfg = (out / "assets/js/lab/config.js").read_text(encoding="utf-8")
+            self.assertNotIn('"backend": "fake"', cfg)   # 서버 주소가 없으면 none, 있으면 supabase(11-13 연결)
+            self.assertTrue('"backend": "none"' in cfg or '"backend": "supabase"' in cfg)
 
     def test_preview_open_only_in_local_build(self):
         # 로그인 없이 게시판을 '시험회원'으로 보여 주는 것은 이 컴퓨터 미리 보기에서만(10-28). 공개용은 회원만.
