@@ -46,9 +46,9 @@
     return '';
   }
 
-  // 화면에 보일 원래 이름: 위험한 글자를 빼고 100자까지
+  // 화면에 보일 원래 이름: 위험한 글자(글자 방향을 뒤집는 숨은 글자 포함, 서버 규칙과 같음)를 빼고 100자까지
   function safeName(name) {
-    var s = String(name || '파일').replace(/[\/\\:*?"<>|\u0000-\u001F\u007F]/g, '').trim();
+    var s = String(name || '파일').replace(/[\/\\:*?"<>|\u0000-\u001F\u007F؜‎‏‪-‮⁦-⁩]/g, '').trim();
     if (!s) s = '파일';
     return s.length > 100 ? s.slice(0, 100) : s;
   }
@@ -102,8 +102,25 @@
     return { blob: blob, width: w, height: hgt, mime: 'image/jpeg', ext: 'jpg' };
   }
 
+  // 구성원 카드 사진: 세로 4:5(480 × 600)로 가운데를 잘라 JPEG 로 다시 그린다(위치 정보 같은 숨은 내용이 빠짐).
+  // 관리 화면 카드 고치기와 내 정보 사진 요청(11-02)이 같이 쓴다
+  async function portrait(file) {
+    var ok = await checkPhoto(file);
+    if (!ok.ok) throw window.Lab.userError(ok.error);
+    var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    var W = 480, H = 600, r = Math.max(W / bmp.width, H / bmp.height);
+    var sw = W / r, sh = H / r, sx = (bmp.width - sw) / 2, sy = Math.max(0, (bmp.height - sh) / 3);
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var g = canvas.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    g.drawImage(bmp, sx, sy, sw, sh, 0, 0, W, H);
+    if (bmp.close) bmp.close();
+    return canvasToBlob(canvas, 0.85);
+  }
+
   window.LabUpload = {
-    checkPhoto: checkPhoto, checkFile: checkFile, reencodePhoto: reencodePhoto, safeName: safeName,
+    checkPhoto: checkPhoto, checkFile: checkFile, reencodePhoto: reencodePhoto, portrait: portrait, safeName: safeName,
     limits: { PHOTO_MAX_IN: PHOTO_MAX_IN, PHOTO_MAX_OUT: PHOTO_MAX_OUT, FILE_MAX: FILE_MAX, LONG_SIDE: LONG_SIDE },
     accept: { photo: '.jpg,.jpeg,.png,.webp', file: '.pdf,.hwp,.hwpx,.docx,.xlsx,.pptx' },
     _magicOf: magicOf

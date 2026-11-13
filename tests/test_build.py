@@ -130,7 +130,8 @@ class ListPagesTest(unittest.TestCase):
         self.assertIn("숫자만", str(cm.exception))
 
     def test_english_titles_marked(self):
-        self.assertIn('<span lang="en">Strengthening the Performance', self.body["/research/projects/"])
+        # 관리 화면에서 과제를 고쳐도 시험이 멈추지 않게 시험용 줄로 본다(10-28)
+        self.assertIn('<span lang="en">Strengthening the Performance', build.project_li({"연도": "2024", "과제": "Strengthening the Performance of Health Systems", "진행 중": ""}))
         self.assertTrue(build.is_english("Health policy"))
         self.assertFalse(build.is_english("에티오피아 UHC 달성을 위한 건강보험정책 협력사업 형성조사"))
 
@@ -144,10 +145,24 @@ class ListPagesTest(unittest.TestCase):
         # 관심 분야 · 메일 · CV 는 같은 이름표 줄(연구자, 10-27: "관심분야만 … 카테고리 … 이메일은 띡")
         self.assertEqual(b.count("<dt>관심 분야</dt>"), sum(1 for p in people if p.get("관심 분야")))
         self.assertEqual(b.count("<dt>메일</dt>"), sum(1 for p in people if p.get("메일") and not build.is_no(p.get("메일 공개", ""))))
-        self.assertEqual(b.count("<dt>CV</dt>"), sum(1 for p in people if build.cv_ok(p.get("CV 주소", ""))))
+        # CV는 메일 줄 끝에 붙는다(10-28). 메일을 안 보이는 사람만 'CV' 줄을 따로
+        self.assertEqual(b.count('class="cv"'), sum(1 for p in people if build.cv_ok(p.get("CV 주소", ""))))
+        self.assertEqual(b.count("<dt>CV</dt>"), sum(1 for p in people if build.cv_ok(p.get("CV 주소", ""))
+                                                     and not (p.get("메일") and not build.is_no(p.get("메일 공개", "")))))
         self.assertNotIn('class="links"', b)
         for g in {p["과정"] for p in people}:
             self.assertIn(f'<section class="people-group" id="{build.anchor_name(g)}"><h2>{g}</h2>', b)
+
+    def test_interest_keywords(self):
+        # 관심 분야는 키워드(11-02 저녁): 본인 요청은 ' · '로, 예전 글은 쉼표로 나뉘어 있어도 같은 모양으로 낱말마다 나눈다
+        self.assertEqual(build.keywords("건강보험 ·  장기요양, 건강보험,Health policy"), ["건강보험", "장기요양", "Health policy"])
+        self.assertEqual(build.keywords(""), [])
+        self.assertEqual(build.keyword_list("국제보건 · Health policy"),
+                         '<ul class="kws"><li>국제보건</li><li><span lang="en">Health policy</span></li></ul>')
+        b = self.body["/people/"]
+        people = build.read_table("people", ["과정", "이름"])
+        self.assertEqual(b.count('<ul class="kws">'), sum(1 for p in people if build.keywords(p.get("관심 분야"))))
+        self.assertEqual(b.count('<ul class="kws"><li>'), b.count('<ul class="kws">'))
 
     def test_no_head_counts(self):
         # 재학생 · 졸업생 수는 쓰지 않는다(연구자, 10-27). 수행연구 · 소식의 건수는 둔다
@@ -164,11 +179,17 @@ class ListPagesTest(unittest.TestCase):
 
     def test_cv_link_only_for_safe_address(self):
         site = build.Site(local=True)
-        ok = build.person_card(site, {"이름": "가나", "CV 주소": "https://example.com/cv.pdf"})
-        self.assertIn('<div><dt>CV</dt><dd><a class="cv" href="https://example.com/cv.pdf" target="_blank" rel="noopener noreferrer" '
-                      'aria-label="가나 CV 보기(새 창)"><svg', ok)
-        self.assertIn("</svg>보기</a>", ok)
+        link = ('<a class="cv" href="https://example.com/cv.pdf" target="_blank" rel="noopener noreferrer" '
+                'aria-label="가나 CV 보기(새 창)">CV</a>')
+        # 메일이 보이면 메일 줄 끝에 흐린 'CV'(10-28 연구자: "이메일 옆에 눈에 띄지 않게")
+        ok = build.person_card(site, {"이름": "가나", "메일": "a@snu.ac.kr", "CV 주소": "https://example.com/cv.pdf"})
+        self.assertIn('</a><span class="cv-wrap"><span class="cv-sep" aria-hidden="true">·</span>' + link + "</span></dd>", ok)
+        self.assertNotIn("<dt>CV</dt>", ok)
         self.assertNotIn("example.com/cv.pdf</a>", ok)  # 주소 글자는 화면에 안 보인다
+        # 메일을 안 보이면 'CV' 줄을 따로
+        alone = build.person_card(site, {"이름": "가나", "CV 주소": "https://example.com/cv.pdf"})
+        self.assertIn("<div><dt>CV</dt><dd>" + link + "</dd></div>", alone)
+        self.assertNotIn("cv-sep", build.person_card(site, {"이름": "가나", "메일": "a@snu.ac.kr"}))  # CV 없으면 점도 없음
         for bad in ("javascript:alert(1)", "data:text/html,x", "mailto:a@b.c", "http://example.com/cv", "https://a b", ""):
             self.assertNotIn('class="cv"', build.person_card(site, {"이름": "가나", "CV 주소": bad}), bad)
 
@@ -178,15 +199,26 @@ class ListPagesTest(unittest.TestCase):
         real = build.MEMBER_CV
         with tempfile.TemporaryDirectory() as d:
             build.MEMBER_CV = tmp = Path(d) / "_member_cv.json"
-            tmp.write_text('[{"name": "가나", "cv_url": "https://me.example/cv"}, {"name": "다라", "cv_url": "javascript:x"}]',
+            # 10-28부터 이름 대신 구성원 카드 '번호'로 잇는다(관리 화면에서 회원과 카드를 이어 둔 사람만)
+            tmp.write_text('[{"person_no": 7, "cv_url": "https://me.example/cv"}, {"person_no": 8, "cv_url": "javascript:x"}, {"person_no": "a", "cv_url": "https://x.example"}]',
                            encoding="utf-8")
             try:
                 site = build.Site(local=True)
                 site.member_cv = build.load_member_cv()
-                self.assertEqual(site.member_cv, {"가나": "https://me.example/cv"})  # 규칙에 안 맞는 주소는 버림
-                card = build.person_card(site, {"이름": "가나", "CV 주소": "https://table.example/cv"})
+                self.assertEqual(site.member_cv, {"7": "https://me.example/cv"})  # 규칙에 안 맞는 주소 · 번호는 버림
+                card = build.person_card(site, {"이름": "가나", "번호": "7", "CV 주소": "https://table.example/cv"})
                 self.assertIn('href="https://me.example/cv"', card)
-                self.assertIn('href="https://table.example/cv"', build.person_card(site, {"이름": "마바", "CV 주소": "https://table.example/cv"}))
+                # 이름이 같아도 번호가 다르면 안 붙는다(이름은 회원이 바꿀 수 있음)
+                self.assertIn('href="https://table.example/cv"', build.person_card(site, {"이름": "가나", "번호": "9", "CV 주소": "https://table.example/cv"}))
+                # 11-02: 본인이 'CV 공개'를 끄면 그 카드는 표에 적힌 CV 주소까지 숨긴다(점 · CV 줄도 없음)
+                tmp.write_text('[{"person_no": 7, "cv_url": "https://me.example/cv", "cv_public": true}, {"person_no": 9, "cv_url": null, "cv_public": false}]',
+                               encoding="utf-8")
+                site.member_cv = build.load_member_cv()
+                self.assertEqual(site.member_cv, {"7": "https://me.example/cv", "9": ""})
+                hidden = build.person_card(site, {"이름": "가나", "번호": "9", "메일": "a@snu.ac.kr", "CV 주소": "https://table.example/cv"})
+                self.assertNotIn('class="cv"', hidden)
+                self.assertNotIn("cv-sep", hidden)
+                self.assertIn('href="https://me.example/cv"', build.person_card(site, {"이름": "가나", "번호": "7"}))
                 tmp.unlink()
                 self.assertEqual(build.load_member_cv(), {})
             finally:
@@ -202,7 +234,7 @@ class ListPagesTest(unittest.TestCase):
         positions = [b.index(f'<li class="t-year" id="y{y}">') for y in years]
         self.assertEqual(positions, sorted(positions))
         self.assertEqual(b.count('<h3 class="nm">'), len(rows))
-        self.assertNotIn('class="th"', b)  # 학위논문 칸이 비면 아무것도 안 보인다
+        self.assertEqual(b.count('class="th"'), sum(1 for a in rows if a.get("학위논문")))  # 학위논문 칸이 비면 아무것도 안 보인다
         # 같은 해 졸업생은 가나다순
         for y in years:
             part = b[b.index(f'id="y{y}"'):].split('</ul>', 1)[0]
@@ -229,10 +261,11 @@ class ListPagesTest(unittest.TestCase):
         news = build.read_table("news", ["날짜", "제목"])
         for y in {n["날짜"][:4] for n in news}:
             self.assertIn(f'<section class="grp" id="y{y}">', b)
-        d = news[0]["날짜"]
-        self.assertIn(f'<time datetime="{d}">{d[5:7]}.{d[8:10]}</time>', b)
-        # 첫 화면 소식은 해까지 쓴다
-        self.assertIn(f'<time datetime="{d}">{d.replace("-", ".")}</time>', build.news_row(self.site, news[0]))
+        if news:   # 관리 화면에서 소식을 모두 빼도 시험이 멈추지 않게(10-28)
+            d = news[0]["날짜"]
+            self.assertIn(f'<time datetime="{d}">{d[5:7]}.{d[8:10]}</time>', b)
+        # 첫 화면 소식은 해까지 쓴다(시험용 줄)
+        self.assertIn('<time datetime="2026-10-28">2026.10.28</time>', build.news_row(self.site, {"날짜": "2026-10-28", "제목": "시험 소식"}))
 
     def test_course_desc_shown(self):
         # 과목 소개는 처음부터 과목마다 한 문단(10-28 연구자: "과목소개는 기본적으로 나오게"), 설명이 빈 과목은 아무것도 안 보인다
@@ -241,7 +274,9 @@ class ListPagesTest(unittest.TestCase):
         with_text = [c for c in courses if c.get("설명", "").strip()]
         self.assertEqual(b.count('<p class="course-desc"'), len(with_text))
         self.assertNotIn("<details", b)
-        self.assertIn(f'<p class="course-desc" lang="en">{build.esc(with_text[0]["설명"].strip())}</p>', b)
+        if with_text:   # 첫 과목 설명이 영어가 아니어도 · 설명이 모두 비어도 시험이 멈추지 않게(10-28)
+            self.assertIn(build.course_desc(with_text[0]), b)
+        self.assertEqual(build.course_desc({"과목 이름": "가나", "설명": "Health policy"}), '<p class="course-desc" lang="en">Health policy</p>')
         self.assertEqual(build.course_desc({"과목 이름": "가나", "설명": ""}), "")
         self.assertEqual(build.course_desc({"과목 이름": "가나", "설명": "보건 재정 과목"}), '<p class="course-desc">보건 재정 과목</p>')
 
@@ -259,6 +294,41 @@ class ListPagesTest(unittest.TestCase):
         self.assertIn("font-variant-numeric: tabular-nums", css)
         self.assertNotIn("tbl-years", css)
         self.assertNotRegex(css, r"\.gallery figure \{[^}]*border")
+
+
+class TextPagesTest(unittest.TestCase):
+    """글 화면(2026-10-28): 소개는 교수님 글 그대로 + 왼쪽 칸 이름표, 글 문단은 한 크기, 교수 직함 줄 아래 나눔선."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.site = build.Site(local=True)
+        build.build_pages(cls.site)
+        cls.body = {p["path"]: p["body"] for p in cls.site.pages}
+        cls.css = (ROOT / "assets/css/site.css").read_text(encoding="utf-8")
+
+    def test_about_text_kept_with_label(self):
+        b = self.body["/about/"]
+        self.assertIn('<section class="sec"><h2>연구실 소개</h2>', b)
+        self.assertNotIn("lead-block", b)
+        self.assertNotIn("&lt;!--", b)  # 메모가 화면에 글로 새지 않게
+        src = build.read_text("about.md")
+        paras = [t.strip() for t in src.split("\n\n") if t.strip() and not t.strip().startswith(("<!--", "#"))]
+        self.assertEqual(len(paras), 4)
+        for t in paras:
+            self.assertIn(build.esc(t), b)
+
+    def test_one_text_size(self):
+        # 크게 쓰는 줄은 교수 화면 직함 줄뿐. 다른 글 화면은 절마다 위에 먹색 가는 선
+        self.assertNotRegex(self.css, r"(?m)^\.lead-block > p:first-child \{")
+        self.assertIn(".prose--aside .lead-block > p:first-child, ", self.css)
+        self.assertIn(".prose > .sec { border-top: 1px solid var(--ink);", self.css)
+
+    def test_professor_title_dividers(self):
+        self.assertIn("linear-gradient(var(--gold), var(--gold)) 0 0 / 40px 2px no-repeat", self.css)
+        b = self.body["/professor/"]
+        self.assertIn('<div class="lead-block"><p>서울대학교 보건대학원 보건정책관리학과 교수</p>', b)
+        self.assertIn('<section class="sec"><h2>Profile</h2><div class="sec-body">\n<p>Professor and Former Dean', b)
+        self.assertEqual(b.count('<section class="tl-part">'), 2)  # 경력 · 학력 나눔 유지(다른 연구실 18곳 조사, 10-28)
 
 
 class SiteTest(unittest.TestCase):

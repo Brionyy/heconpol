@@ -12,16 +12,30 @@
 
   var LAB_IMG = /^lab:([A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_.-]{1,120})$/;
 
+  // 글쓰기 시안 A(2026-11-02): 밑줄 · 글자색 · 글씨 크기 · 형광 · 정렬 · 사진 크기 · 사진 설명 · 사진 나란히 · 인용구 · 구분선 모양 · 링크 카드.
+  // 모양은 style 속성이 아니라 아래 표에 있는 꾸밈 이름(class)으로만 남긴다. 표에 없는 이름은 거를 때 지운다.
+  var CLASS_OK = {
+    P: ['al-center', 'al-right', 'lcard'], H3: ['al-center', 'al-right'], H4: ['al-center', 'al-right'],
+    SPAN: ['tc-gray', 'tc-gold', 'tc-red', 'fs-s', 'fs-m', 'fs-l', 'fs-xl'], MARK: ['hl-gold', 'hl-sky', 'hl-rose'],
+    BLOCKQUOTE: ['q-mark', 'q-center'], HR: ['hr-gold', 'hr-double'],
+    FIGURE: ['pics', 'sz-s', 'sz-m', 'sz-l', 'cols-1', 'cols-2', 'cols-3']
+  };
+
   var PURIFY = {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'del', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h3', 'h4',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'img'],
-    ALLOWED_ATTR: ['href', 'title', 'src', 'alt'],
+      'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'img', 'u', 'mark', 'span', 'figure', 'figcaption'],
+    ALLOWED_ATTR: ['href', 'title', 'src', 'alt', 'class'],
     ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|lab:)/i,
     ALLOW_DATA_ATTR: false,
     RETURN_DOM_FRAGMENT: true
   };
 
   window.DOMPurify.addHook('afterSanitizeAttributes', function (node) {
+    if (node.nodeType === 1 && node.hasAttribute('class')) {
+      var ok = CLASS_OK[node.tagName] || [];
+      var keep = node.getAttribute('class').split(/\s+/).filter(function (c) { return ok.indexOf(c) !== -1; });
+      if (keep.length) node.setAttribute('class', keep.join(' ')); else node.removeAttribute('class');
+    }
     // 링크마다 새 창 · 남에게 정보 안 넘김 표시를 붙인다. lab: 주소는 링크로 쓰지 않는다.
     if (node.tagName === 'A' && node.hasAttribute('href')) {
       if (/^lab:/i.test(node.getAttribute('href'))) { node.removeAttribute('href'); return; }
@@ -70,5 +84,5 @@
     }));
   }
 
-  window.LabRender = { markdown: markdown, legacyHtml: legacyHtml, images: images, config: PURIFY, LAB_IMG: LAB_IMG };
+  window.LabRender = { markdown: markdown, legacyHtml: legacyHtml, images: images, config: PURIFY, LAB_IMG: LAB_IMG, CLASS_OK: CLASS_OK };
 })();

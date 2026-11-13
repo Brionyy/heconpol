@@ -56,9 +56,8 @@
     if (slides.length < 2) return;
     var now = hero.querySelector('.count-now');
     var bar = hero.querySelector('.count-bar');
-    var pauseBtn = hero.querySelector('.slide-pause');
     var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var idx = 0, timer = null, paused = reduce, hovering = false;
+    var idx = 0, timer = null, hovering = false;
     var step = 80 / Math.max(slides.length - 1, 1);
 
     function show(n) {
@@ -75,21 +74,12 @@
     function stop() { if (timer) { clearInterval(timer); timer = null; } }
     function start() {
       stop();
-      if (paused || hovering || document.hidden) return;
+      if (reduce || hovering || document.hidden) return;
       timer = setInterval(function () { show(idx + 1); }, 7000);
     }
     hero.querySelectorAll('[data-slide]').forEach(function (b) {
       b.addEventListener('click', function () { show(idx + Number(b.getAttribute('data-slide'))); start(); });
     });
-    if (pauseBtn) {
-      if (reduce) { pauseBtn.textContent = '넘기기'; pauseBtn.setAttribute('aria-pressed', 'true'); }
-      pauseBtn.addEventListener('click', function () {
-        paused = !paused;
-        pauseBtn.textContent = paused ? '넘기기' : '멈춤';
-        pauseBtn.setAttribute('aria-pressed', paused ? 'true' : 'false');
-        start();
-      });
-    }
     hero.addEventListener('mouseenter', function () { hovering = true; stop(); });
     hero.addEventListener('mouseleave', function () { hovering = false; start(); });
     hero.addEventListener('focusin', function () { hovering = true; stop(); });

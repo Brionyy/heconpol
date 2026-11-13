@@ -537,6 +537,6 @@ create policy lab_files_delete on storage.objects for delete to authenticated
 
 -- ------------------------------------------------------------ Supabase 화면에서 따로 할 일(이 파일 밖)
 -- 1) pg_cron 켜고: select cron.schedule('delete-stale-pending', '30 3 * * *', 'select private.delete_stale_pending()');
--- 2) Authentication: 가입 켬(가입 신청을 받으므로), 가입 확인 메일 끔(관리자 승인으로 거름, 2026-10-24 결정), Email OTP Expiration 3600초, 비밀번호 10자 · 영문+숫자,
+-- 2) Authentication: 공개 가입 끔(10-28 바꿈, 가입 신청은 서버 도우미 login-help 가 받음. 20261028000000_admin_join.sql 끝 참고), 가입 확인 메일 끔(관리자 승인으로 거름, 2026-10-24 결정), Email OTP Expiration 3600초, 비밀번호 10자 · 영문+숫자,
 --    Site URL https://heconpol.org, Redirect URLs 는 /login/reset/ 만.
 -- 3) 공개 전 Security Advisor 경고 0 확인.

@@ -11,7 +11,7 @@ import build  # noqa: E402
 
 
 def row(line, **cells):
-    base = {"주소 이름": "free", "이름": "자유게시판", "설명": "", "첨부": "예", "사진첩": "아니오", "묶음": "", "대상": ""}
+    base = {"주소 이름": "free", "이름": "자유게시판", "설명": "", "첨부": "예", "사진첩": "아니오", "묶음": ""}
     base.update(cells)
     base["_line"] = line
     return base
@@ -21,21 +21,20 @@ class BoardsTableTest(unittest.TestCase):
     def test_three_boards(self):
         # 연구자 요청(10-27): 세미나 후기(첨부 됨) · 신입생 자기소개(옛 newcomer 주소) · 자유게시판(모임 뒤 후기)
         by = {b["slug"]: b for b in build.read_boards()}
-        self.assertEqual(by["seminar"]["name"], "세미나 후기")
+        self.assertEqual(by["seminar"]["name"], "세미나")  # 11-13 세미나 후기 + 옛 세미나 글 합침
         self.assertTrue(by["seminar"]["files"])
         self.assertEqual(by["newcomer"]["name"], "신입생 자기소개")
         self.assertIn("모임 · 행사 뒤 후기", by["free"]["desc"])
         self.assertTrue(any(b["gallery"] for b in by.values()), "사진첩 게시판이 하나는 있어야 사진첩 화면이 열린다")
 
-    def test_group_and_audience_read(self):
-        boards = build.read_boards([row(2, 묶음="게시판", 대상="재학 · 졸업"), row(3, **{"주소 이름": "x-2", "대상": "교수/기타, 교수"})])
+    def test_group_read_and_no_audience(self):
+        # '대상' 칸은 2026-11-13 연구자 결정으로 없앴다
+        boards = build.read_boards([row(2, 묶음="게시판")])
         self.assertEqual(boards[0]["group"], "게시판")
-        self.assertEqual(boards[0]["audience"], ["재학", "졸업"])
-        self.assertEqual(boards[1]["audience"], ["교수", "기타"])
+        self.assertNotIn("audience", boards[0])
 
     def test_bad_values_named_with_line(self):
         cases = [
-            (row(4, 대상="신입생"), ["4번째 줄", "'대상'", "재학 · 졸업 · 교수 · 기타", "신입생"]),
             (row(5, **{"주소 이름": "Seminar"}), ["5번째 줄", "'주소 이름'", "Seminar"]),
             (row(6, 묶음="가" * 31), ["6번째 줄", "30자"]),
         ]
@@ -67,7 +66,7 @@ class LabPagesTest(unittest.TestCase):
         # 회원 칸 화면은 이 목록으로 게시판 주소 · 이름 · 첨부 허용을 안다
         data = self.pages["/lab/"]["data"]["boards"]
         self.assertEqual(data, build.read_boards())
-        self.assertEqual(set(data[0]), {"slug", "name", "desc", "files", "gallery", "group", "audience"})
+        self.assertEqual(set(data[0]), {"slug", "name", "desc", "files", "gallery", "group"})
 
     def test_each_board_has_its_own_page(self):
         # 연구자(10-27): "한 화면에 있는게 아니라 … 구성원 졸업생 이런 것 처럼" → 게시판마다 /board/<주소 이름>/ 화면

@@ -46,6 +46,10 @@ ICLOUD_IGNORE = "com.apple.fileprovider.ignore#P"
 # '기본'은 site.css 그대로(palettes.css 를 붙이지 않음).
 PALETTES = {"기본": "", "신뢰": "trust", "고급": "luxe"}
 
+# 관리 화면에서 고치는 공개 표 다섯 개(구성원 · 졸업생 · 소식 · 수행연구 · 교과목)의 칸 규칙(2026-10-28).
+# 관리 화면 · 가짜 서버 · 서버 도우미가 같은 파일을 읽고(assets/js/lab/site-tables.js), 여기서도 같은 규칙으로 본다.
+RULES_FILE = ROOT / "schema" / "tables.json"
+
 
 class BuildError(Exception):
     pass
@@ -75,6 +79,95 @@ def read_table(name, required=()):
             row["_line"] = i
             rows.append(row)
     return rows
+
+
+_CTRL = re.compile("[\u0000-\u001f\u007f\u2028\u2029]")
+_EMAIL = re.compile(r'^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$')
+_HTTPS = re.compile(r"^https://[^\s<>\"'`]+$")
+_SITE_PATH = re.compile(r"^/(?!/)[A-Za-z0-9._~\-/#?=&%]*$")
+_MD_FILE = re.compile(r"^[A-Za-z0-9_\-]+(/[A-Za-z0-9_.\-]+)*\.md$")
+_DEFAULT_MAX = {"text": 200, "long": 3000, "email": 120, "https": 300, "link": 300, "file": 200, "choice": 40,
+                "flag": 1, "date": 10, "year": 4, "number": 6, "photo": 85}
+
+
+def load_rules():
+    return json.loads(RULES_FILE.read_text(encoding="utf-8"))
+
+
+def check_cell(rules, col, v):
+    """칸 하나를 규칙대로 본다. 틀리면 사람이 읽을 까닭, 맞으면 None(site-tables.js checkCell 과 같음)."""
+    v = "" if v is None else str(v)
+    if _CTRL.search(v):
+        return "줄 바꿈이나 보이지 않는 글자는 넣을 수 없습니다"
+    if v != v.strip():
+        return "앞뒤 빈칸을 지워 주십시오"
+    if not v:
+        return "꼭 적어야 합니다" if col.get("required") else None
+    kind = col.get("kind", "text")
+    limit = col.get("max") or _DEFAULT_MAX.get(kind, 200)
+    if len(v) > limit:
+        return f"{limit}자까지 적을 수 있습니다(지금 {len(v)}자)"
+    if kind == "choice":
+        return None if v in col["choices"] else " · ".join(col["choices"]) + " 가운데 하나를 고릅니다"
+    if kind == "flag":
+        return None if v == "예" else "'예' 또는 빈칸입니다"
+    if kind == "date":
+        ok = bool(re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", v))
+        if ok:
+            try:
+                time.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                ok = False
+        return None if ok else "2026-10-28 모양으로 적습니다"
+    if kind == "year":
+        return None if re.fullmatch(r"(19|20)[0-9]{2}", v) else "네 자리 해(예: 2026)로 적습니다"
+    if kind == "email":
+        return None if _EMAIL.match(v) else "메일 주소 모양이 아닙니다"
+    if kind == "https":
+        return None if _HTTPS.match(v) else "https:// 로 시작하는 주소만 됩니다"
+    if kind == "link":
+        return None if _HTTPS.match(v) or _SITE_PATH.match(v) else "https:// 로 시작하는 주소(또는 /로 시작하는 사이트 안 주소)만 됩니다"
+    if kind == "photo":
+        return None if re.search(rules["photo_pattern"], v) else "사진 파일 이름은 영문 · 숫자 · _ · - 와 .jpg · .png · .webp 로 끝나야 합니다"
+    if kind == "number":
+        return None if re.fullmatch(r"[1-9][0-9]{0,5}", v) else "1 이상의 숫자입니다"
+    if kind == "file":
+        return None if _MD_FILE.match(v) else "글 파일 이름 모양이 아닙니다"
+    return None
+
+
+def check_table_rules(rules=None):
+    """공개 표 다섯 개가 칸 규칙(schema/tables.json)을 지키는지 본다. 틀린 곳 [(파일, 줄, 칸, 까닭)].
+    구성원 · 졸업생의 '번호'(회원 계정과 잇는 값)가 두 표를 통틀어 겹치지 않는지도 본다."""
+    rules = rules or load_rules()
+    out, seen = [], {}
+    for name, t in rules["tables"].items():
+        path = ROOT / t["file"]
+        if not path.exists():
+            out.append((t["file"], 0, "", "표 파일이 없습니다"))
+            continue
+        with path.open(encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            header = [c.strip() for c in (reader.fieldnames or [])]
+            missing = [c["name"] for c in t["columns"] if c["name"] not in header]
+            if missing:
+                out.append((t["file"], 1, "", "첫 줄에 칸이 없습니다: " + ", ".join(missing)))
+                continue
+            for i, raw in enumerate(reader, start=2):
+                row = {(k or "").strip(): (v or "").strip() for k, v in raw.items() if k is not None}
+                if not any(row.values()):
+                    continue
+                for col in t["columns"]:
+                    msg = check_cell(rules, col, row.get(col["name"], ""))
+                    if msg:
+                        out.append((t["file"], i, col["name"], msg))
+                    if col.get("kind") == "number" and row.get(col["name"]):
+                        key = (t.get("number_group") or name, row[col["name"]])
+                        if key in seen:
+                            out.append((t["file"], i, col["name"], f"번호 {row[col['name']]}이(가) {seen[key]}와 겹칩니다"))
+                        else:
+                            seen[key] = f"{t['label']} {i}번째 줄"
+    return out
 
 
 def read_settings():
@@ -122,6 +215,23 @@ def is_english(text):
 
 def text_lang(text):
     return f'<span lang="en">{esc(text)}</span>' if is_english(text) else esc(text)
+
+
+def keywords(text):
+    """관심 분야 칸을 키워드 목록으로(11-02 저녁: 본인 요청은 키워드 5개까지를 ' · '로 이어 넣는다).
+    예전 글처럼 쉼표로 나눈 것도 같이 읽는다. 같은 키워드는 한 번만(common.js keywords 와 같음)."""
+    out, seen = [], set()
+    for w in re.split(r"[,，·・;\r\n]+", text or ""):
+        w = re.sub(r"\s+", " ", w).strip()
+        if w and w.lower() not in seen:
+            seen.add(w.lower())
+            out.append(w)
+    return out
+
+
+def keyword_list(text):
+    """키워드마다 한 덩어리(줄이 바뀌어도 낱말 중간에서 끊기지 않게), 사이는 금색 점(CSS .kws)."""
+    return '<ul class="kws">' + "".join(f"<li>{text_lang(w)}</li>" for w in keywords(text)) + "</ul>"
 
 
 SAFE_URL = re.compile(r"^(https?://|mailto:|/(?!/)|#)", re.I)
@@ -469,13 +579,15 @@ class Site:
         return "".join(html_items)
 
     def page(self, path, title, body, *, kind="inner", lang="ko", lab=False, scripts=(), data=None, heading=None,
-             sub=None, description=None, index=None, photo=None, photo_alt="", art=None, cv=None, modules=()):
+             sub=None, description=None, index=None, photo=None, photo_alt="", art=None, cv=None, modules=(),
+             band_photo=None, band_search=None):
         """화면 하나를 기록해 둔다. path 는 '/about/' 같은 주소. index 는 제목 띠의 '이 화면 바로가기'(id, 이름, 수).
-        cv 는 제목 띠 이름 아래 작은 'CV' 링크 주소(교수 화면). modules 는 다른 파일을 불러 쓰는 동작 파일(첫 화면 지구본)."""
+        cv 는 제목 띠 이름 아래 작은 'CV' 링크 주소(교수 화면). modules 는 다른 파일을 불러 쓰는 동작 파일(첫 화면 지구본).
+        band_photo 는 제목 띠 바탕 사진('photos/파일', 그림 설명), band_search 는 띠 안 찾기 칸(주소, 안내 글). 세미나 게시판(11-13)."""
         self.pages.append(dict(path=path, title=title, body=body, kind=kind, lang=lang, lab=lab,
                                scripts=list(scripts), data=data, heading=heading, sub=sub,
                                description=description, index=index, photo=photo, photo_alt=photo_alt, art=art, cv=cv,
-                               modules=list(modules)))
+                               modules=list(modules), band_photo=band_photo, band_search=band_search))
 
     def render(self, p):
         name = self.cfg.get("이름", "")
@@ -521,6 +633,20 @@ class Site:
                     else f'<div class="band-text">{title}</div>')
             band = (f'<div class="band{" band--profile" if photo else ""}"><div class="band-bg" aria-hidden="true">{art}</div>'
                     f'<div class="wrap">{text}{side}</div></div>')
+            if p["band_photo"]:
+                # 2026-11-13 세미나 게시판 시안 '가'(연구자 선택): 사진 위 남색 덮개 · 금색 짧은 선 · 명조 제목 · 찾기 칸.
+                # 꾸밈 규칙(CSP)이 글 속 style 을 막아 사진은 <img> 로 깐다
+                src = p["band_photo"][0]   # 꾸밈 사진이라 그림 설명은 비워 둔다(읽어 주는 프로그램이 건너뜀)
+                look = ""
+                if p["band_search"]:
+                    act, hint = p["band_search"]
+                    look = (f'<form class="band-search" role="search" method="get" action="{esc(self.url(act))}">'
+                            f'<label class="sr-only" for="band-q">이 게시판에서 찾기</label>{SEARCH_ICO}'
+                            f'<input id="band-q" name="q" type="search" placeholder="{esc(hint)}" autocomplete="off" maxlength="40">'
+                            f'<button type="submit">찾기</button></form>')
+                band = (f'<div class="band band--photo"><div class="band-bg" aria-hidden="true">'
+                        f'<img src="{esc(self.url("/assets/img/" + src))}" alt="" width="966" height="644" decoding="async"></div>'
+                        f'<div class="wrap"><div class="band-text">{title}{look}</div></div></div>')
         values = {
             "lang": p["lang"],
             "csp": self.csp(globe="/assets/js/globe.js" in p["modules"]),
@@ -547,7 +673,6 @@ class Site:
             "foot_addr": esc(self.cfg.get("주소", "")),
             "foot_mail": self._foot_mail(),
             "privacy": esc(self.url("/privacy/")),
-            "credits": esc(self.url("/credits/")),
             "year": esc(self.cfg.get("저작권 연도", "")),
             "data_block": data_block,
             "scripts": script_tags,
@@ -583,6 +708,9 @@ class Site:
             "supabaseUrl": self.supabase,
             "publishableKey": self.cfg.get("공개 열쇠", ""),
             "base": self.base,
+            # 이 컴퓨터 미리 보기(가짜 로그인)에서만 로그인 없이 게시판을 '시험회원'으로 보여 준다(10-28 연구자:
+            # "일단은 회원이 아니더라도 볼 수 있게"). 공개용 · 진짜 서버 연결에서는 늘 False라 회원만 본다.
+            "previewOpen": self.local and not self.supabase,
         }
         cfg_js = "window.LAB_CONFIG = Object.freeze(" + json.dumps(lab_cfg, ensure_ascii=False) + ");\n"
         files["assets/js/lab/config.js"] = cfg_js.encode("utf-8")
@@ -646,7 +774,7 @@ def one_builder(out, wait=120):
                 break
             except BlockingIOError:
                 if time.monotonic() - start > wait:
-                    raise BuildError(f"다른 곳에서 화면을 만드는 중이라 {wait}초를 기다렸지만 끝나지 않았습니다. 잠시 뒤 다시 하세요")
+                    raise BuildError(f"다른 곳에서 화면을 만드는 중이라 {wait}초를 기다렸지만 끝나지 않았습니다. 잠시 뒤 다시 하십시오")
                 if not told:
                     print("알림: 다른 곳에서 화면을 만드는 중이라 끝나기를 기다립니다.", file=sys.stderr)
                     told = True
@@ -682,6 +810,13 @@ def build_pages(site):
     url = site.url
     md = lambda src: md_to_html(src, url)
 
+    # 관리 화면이 고치는 표 다섯 개는 칸 규칙을 먼저 본다(관리 화면 저장과 같은 규칙이라 둘이 어긋나지 않음)
+    problems = check_table_rules()
+    if problems:
+        f, line, col, msg = problems[0]
+        more = f" (그 밖에 {len(problems) - 1}곳)" if len(problems) > 1 else ""
+        raise BuildError(f"{f} {line}번째 줄" + (f" '{col}' 칸" if col else "") + f": {msg}{more}")
+
     # 공통으로 쓰는 표
     news = read_table("news", ["날짜", "제목"])
     news.sort(key=lambda r: r["날짜"], reverse=True)
@@ -689,6 +824,9 @@ def build_pages(site):
 
     # ---- 첫 화면
     slides = read_table("slides", ["사진", "제목"])
+    # 이용 조건상 만든 사람을 밝혀야 하는 사진(CC 사진)은 그 사진 위에 작게 출처를 붙인다(2026-11-13 연구자: 바닥글 '사진 출처' 없앰)
+    credit_of = {c["사진"]: c for c in read_table("photo_credits", ["사진", "만든 사람", "이용 조건", "주소"])
+                 if c.get("이용 조건", "").upper().startswith("CC")}
     quick = read_table("quicklinks", ["제목", "주소"])
     pos = {"위": "pos-top", "가운데": "pos-center", "아래": "pos-bottom"}
     slide_html = []
@@ -717,15 +855,17 @@ def build_pages(site):
                f'{" fetchpriority=\"high\"" if i == 0 else " loading=\"lazy\""}>') +
             f'<div class="hero-center"><div class="rule"></div>'
             f'<p class="kick">{esc(s.get("위 작은 줄", ""))}</p>'
-            f'<{heading} class="hero-h">{esc(s["제목"])}</{heading}>{line}{small}{btn}</div></div>')
+            f'<{heading} class="hero-h">{esc(s["제목"])}</{heading}>{line}{small}{btn}</div>'
+            + (f'<p class="slide-credit">사진 <a href="{esc(safe_url(credit_of[s["사진"]]["주소"]))}" rel="noopener noreferrer">'
+               f'{esc(credit_of[s["사진"]]["만든 사람"])}</a> · {esc(credit_of[s["사진"]]["이용 조건"])}</p>'
+               if s["사진"] in credit_of else "") + '</div>')
     controls = ""
     if len(slides) > 1:
         controls = (
             '<button type="button" class="arw arw-l" data-slide="-1"><span class="sr-only">이전 사진</span></button>'
             '<button type="button" class="arw arw-r2" data-slide="1"><span class="sr-only">다음 사진</span></button>'
             f'<div class="count" aria-hidden="true"><span class="count-now">01</span><i><b class="count-bar"></b></i>'
-            f'<span>{len(slides):02d}</span></div>'
-            '<button type="button" class="slide-pause" aria-pressed="false">멈춤</button>')
+            f'<span>{len(slides):02d}</span></div>')
     hero = f'<section class="hero" aria-label="연구실 사진" data-count="{len(slides)}">{"".join(slide_html)}{controls}</section>'
 
     quick_html = "".join(
@@ -829,9 +969,10 @@ def build_pages(site):
     # ---- 구성원(2회차 연구자 선택: 카드 모양은 그대로, 넓은 화면에서 한 줄에 두 사람)
     people = read_table("people", ["과정", "이름"])
     site.member_cv = load_member_cv()
-    names = {pe["이름"] for pe in people}
-    for name in sorted(set(site.member_cv) - names):
-        print(f"알림: '{name}' 회원이 적은 CV 주소는 구성원 표에 같은 이름이 없어 붙이지 않았습니다.", file=sys.stderr)
+    nos = {pe.get("번호", "") for pe in people}
+    for no in sorted({k for k, v in site.member_cv.items() if v} - nos, key=int):
+        print(f"알림: 번호 {no} 카드에 이어진 회원이 적은 CV 주소는 구성원 표에 그 번호가 없어 붙이지 않았습니다(졸업생으로 옮겼을 수 있음).",
+              file=sys.stderr)
     groups = {}
     for pe in people:
         groups.setdefault(pe["과정"], []).append(pe)
@@ -858,17 +999,6 @@ def build_pages(site):
     for n in news:
         if n.get("글 파일"):
             article_page(site, n, "news", "소식", "/news/")
-
-    # ---- 사진 출처
-    credits = read_table("photo_credits", ["사진", "원래 이름", "만든 사람", "이용 조건", "주소"])
-    rows = "".join(
-        f'<tr><td>{esc(c["사진"])}</td><td><a href="{esc(safe_url(c["주소"]))}" rel="noopener noreferrer">'
-        f'{esc(c["원래 이름"])}</a></td><td>{esc(c["만든 사람"])}</td><td>{esc(c["이용 조건"])}</td></tr>'
-        for c in credits)
-    site.page("/credits/", "사진 출처",
-              f'<div class="wrap"><p>이 사이트의 사진 가운데 출처 표시가 필요한 것입니다.</p>'
-              f'<table class="tbl"><thead><tr><th scope="col">사진</th><th scope="col">원래 파일</th>'
-              f'<th scope="col">만든 사람</th><th scope="col">이용 조건</th></tr></thead><tbody>{rows}</tbody></table></div>')
 
     # ---- 없는 주소
     site.page("/404.html", "찾는 화면이 없습니다",
@@ -984,7 +1114,9 @@ def cv_ok(url):
 
 
 def load_member_cv():
-    """회원이 '내 정보'에서 적은 CV 주소 {이름: 주소}. 받아 둔 파일이 없으면 빈 것(표의 'CV 주소'만 쓴다)."""
+    """회원이 '내 정보'에서 적은 CV 주소 {구성원 카드 번호: 주소}. 받아 둔 파일이 없으면 빈 것(표의 'CV 주소'만 쓴다).
+    10-28부터 이름 대신 '번호'로 잇는다(관리 화면에서 회원과 카드를 이어 둔 사람만). 이름은 회원이 바꿀 수 있어 남의 카드에 붙을 수 있었다.
+    11-02부터 본인이 'CV 공개'를 끈 카드는 빈 글자(""): 그 카드는 표의 'CV 주소'도 숨긴다."""
     if not MEMBER_CV.exists():
         return {}
     try:
@@ -992,12 +1124,19 @@ def load_member_cv():
     except ValueError:
         print(f"알림: {MEMBER_CV.name} 을 읽지 못해 회원이 적은 CV 주소 없이 만듭니다.", file=sys.stderr)
         return {}
-    return {r["name"]: r["cv_url"] for r in rows
-            if isinstance(r, dict) and isinstance(r.get("name"), str) and cv_ok(r.get("cv_url") or "")}
+    out = {}
+    for r in rows:
+        if not isinstance(r, dict) or not re.fullmatch(r"[1-9][0-9]{0,5}", str(r.get("person_no") or "")):
+            continue
+        if r.get("cv_public") is False:
+            out[str(r["person_no"])] = ""
+        elif cv_ok(r.get("cv_url") or ""):
+            out[str(r["person_no"])] = r["cv_url"]
+    return out
 
 
 def fetch_member_cv(site):
-    """회원 칸 서버에서 '이름 · CV 주소'만 받아 data/_member_cv.json 에 둔다(GitHub 에서 사이트를 만들 때).
+    """회원 칸 서버에서 '구성원 카드 번호 · CV 주소'만 받아 data/_member_cv.json 에 둔다(GitHub 에서 사이트를 만들 때).
     공개 열쇠로 public_member_cv() 만 부른다. 서버가 없거나 안 되면 알리고 넘어간다(만들기는 계속)."""
     key = site.cfg.get("공개 열쇠", "").strip()
     if not site.supabase or not key:
@@ -1011,13 +1150,16 @@ def fetch_member_cv(site):
     except (OSError, ValueError) as e:
         print(f"알림: 회원이 적은 CV 주소를 받지 못했습니다({e}). 지난번 받은 것으로 만듭니다.", file=sys.stderr)
         return
-    rows = [{"name": r.get("name"), "cv_url": r.get("cv_url")} for r in rows if isinstance(r, dict)]
+    rows = [{"person_no": r.get("person_no"), "cv_url": r.get("cv_url"), "cv_public": r.get("cv_public") is not False}
+            for r in rows if isinstance(r, dict)]
     MEMBER_CV.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"회원이 적은 CV 주소 {len(rows)}개를 받았습니다.")
 
 
 def person_card(site, pe):
-    """구성원 카드: 이름(+ 역할 표) 아래 '관심 분야 · 메일 · CV'를 같은 이름표 줄로(연구자, 10-27)."""
+    """구성원 카드: 이름(+ 역할 표) 아래 '관심 분야 · 메일'을 같은 이름표 줄로(연구자, 10-27).
+    CV는 메일 줄 끝에 흐린 작은 글자로 붙인다(10-28 연구자: "이메일 옆에 눈에 띄지 않게 … 모두가 CV를 넣는 거는 아니거든").
+    CV가 없는 사람과 카드 높이가 같아진다. 메일을 안 보이는 사람만 'CV' 줄을 따로 둔다."""
     if pe.get("사진"):
         pic = (f'<img class="ph" src="{esc(site.url("/assets/img/people/" + pe["사진"]))}" alt="" loading="lazy" '
                f'width="160" height="200">')
@@ -1027,16 +1169,23 @@ def person_card(site, pe):
     # '역할' 칸(예: 조교)을 적으면 이름 옆에 글자 표, 카드 위에 금색 선(연구자, 10-27)
     role = f' <span class="role">{esc(pe["역할"])}</span>' if pe.get("역할") else ""
     rows = []
-    if pe.get("관심 분야"):
-        rows.append(("관심 분야", text_lang(pe["관심 분야"])))
+    if keywords(pe.get("관심 분야")):
+        rows.append(("관심 분야", keyword_list(pe["관심 분야"])))
+    # CV: 본인이 '내 정보'에서 적은 주소가 먼저, 없으면 표의 'CV 주소'. 본인이 'CV 공개'를 껐으면(빈 글자) 표 주소도 숨김.
+    # 주소 글자 대신 'CV' 두 글자, 새 창
+    member_cv = getattr(site, "member_cv", {})
+    no = pe.get("번호", "")
+    cv = member_cv[no] if no in member_cv else pe.get("CV 주소", "")
+    cv_link = (f'<a class="cv" href="{esc(cv)}" target="_blank" rel="noopener noreferrer" '
+               f'aria-label="{esc(pe["이름"])} CV 보기(새 창)">CV</a>') if cv_ok(cv) else ""
     if pe.get("메일") and not is_no(pe.get("메일 공개", "")):
         o = obfuscate_email(pe["메일"])
-        rows.append(("메일", f'<a class="mail" href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;{o}">{o}</a>'))
-    # CV: 본인이 '내 정보'에서 적은 주소가 먼저, 없으면 표의 'CV 주소'. 주소 글자 대신 작은 클립 + '보기', 새 창
-    cv = getattr(site, "member_cv", {}).get(pe["이름"]) or pe.get("CV 주소", "")
-    if cv_ok(cv):
-        rows.append(("CV", f'<a class="cv" href="{esc(cv)}" target="_blank" rel="noopener noreferrer" '
-                           f'aria-label="{esc(pe["이름"])} CV 보기(새 창)">{CLIP}보기</a>'))
+        mail = f'<a class="mail" href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;{o}">{o}</a>'
+        # 점과 CV는 한 덩어리(줄이 넘어가도 점만 남지 않게). 휴대폰에서는 메일 아래 줄에 'CV'만
+        rows.append(("메일", mail + (f'<span class="cv-wrap"><span class="cv-sep" aria-hidden="true">·</span>{cv_link}</span>'
+                                     if cv_link else "")))
+    elif cv_link:
+        rows.append(("CV", cv_link))
     info = ('<dl class="pf">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in rows) + "</dl>") if rows else ""
     cls = "person has-role" if role else "person"
     return f'<article class="{cls}">{pic}<div><h3>{esc(pe["이름"])}{en}{role}</h3>{info}</div></article>'
@@ -1049,6 +1198,15 @@ LAB_SCRIPTS_BASE = ["/assets/js/lab/config.js", "/assets/js/lab/api-fake.js", "/
 LAB_SCRIPTS_TEXT = ["/assets/vendor/marked.umd.js", "/assets/vendor/purify.min.js", "/assets/js/lab/render.js"]
 LAB_SCRIPTS_UPLOAD = ["/assets/js/lab/upload.js"]
 LAB_SCRIPTS_EDIT = ["/assets/js/lab/editor.js"]
+# 관리 화면(2026-10-28 2판): 표 고치기 부품 · 사진 줄이기 · 다섯 탭
+LAB_SCRIPTS_ADMIN = ["/assets/js/lab/site-tables.js", "/assets/js/lab/upload.js", "/assets/js/lab/admin.js"]
+
+
+SEARCH_ICO = ('<svg class="band-search-ico" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">'
+              '<circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+              '<path d="m12.6 12.6 4.4 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>')
+# 제목 띠를 사진으로 까는 게시판(주소 이름: 사진, 그림 설명). 사진 출처는 data/photo_credits.csv
+BOARD_BAND_PHOTO = {"seminar": ("photos/classroom.jpg", "보건대학원 강의실 사진")}
 
 
 def lab_shell(name, extra=""):
@@ -1059,15 +1217,11 @@ def lab_shell(name, extra=""):
             f'<div class="lab-root"></div>{extra}</div>')
 
 
-# 게시판 '대상' 칸에 쓸 수 있는 말: 가입 신청의 '구분'(서버 profiles.kind)과 같다.
-BOARD_KINDS = ("재학", "졸업", "교수", "기타")
-
-
 def read_boards(rows=None):
     """data/boards.csv: 게시판 하나가 한 줄. 서버 규칙(supabase/migrations)의 boards 표와 같아야 한다.
 
     게시판마다 /board/<주소 이름>/ 화면이 생기고, 머리 메뉴에서 '묶음' 이름 아래(▾)에 들어간다(board_menu).
-    '대상'은 나중에 읽기 · 쓰기를 나눌 자리로, 아직 권한에 쓰지 않는다.
+    '대상' 칸은 2026-11-13 연구자 결정으로 없앴다(모든 회원이 모든 게시판을 읽고 씀).
     """
     if rows is None:
         rows = read_table("boards", ["주소 이름", "이름"])
@@ -1082,17 +1236,9 @@ def read_boards(rows=None):
         seen.add(slug)
         if len(name) > 30 or len(group) > 30:
             raise BuildError(f"{where}: '이름' · '묶음'은 30자까지입니다")
-        audience = []
-        for word in re.split(r"[·,/]", b.get("대상", "")):
-            word = word.strip()
-            if word and word not in BOARD_KINDS:
-                raise BuildError(f"{where}: '대상' 칸에는 {' · '.join(BOARD_KINDS)}만 적습니다"
-                                 f"(가입 신청의 '구분'과 같은 말): {word}")
-            if word and word not in audience:
-                audience.append(word)
         boards.append({"slug": slug, "name": name, "desc": b.get("설명", ""),
                        "files": b.get("첨부") in ("예", "O", "o"), "gallery": b.get("사진첩") in ("예", "O", "o"),
-                       "group": group, "audience": audience})
+                       "group": group})
     return boards
 
 
@@ -1124,28 +1270,65 @@ def board_menu(menu, boards):
     return out
 
 
+def site_tables_data(rules):
+    """미리 보기 가짜 서버가 이 브라우저 안에서 고치는 공개 표 다섯 개(만들 때 data/*.csv 그대로)."""
+    return {"rules": rules, "texts": {name: (ROOT / t["file"]).read_text(encoding="utf-8") for name, t in rules["tables"].items()}}
+
+
+def member_cards(rules):
+    """카드 번호 → 어느 표 · 사진 주소 · 관심 분야(내 정보 화면에서 '지금 공개된 내 카드'를 보일 때). 공개 화면에 이미 나온 값만."""
+    out = {}
+    for name in ("people", "alumni"):
+        t = rules["tables"][name]
+        for r in read_table(name):
+            if not re.fullmatch(r"[1-9][0-9]{0,5}", r.get("번호", "")):
+                continue
+            out[r["번호"]] = {"table": name, "label": t["label"],
+                              "photo": f'/{t["photo_dir"]}/{r["사진"]}' if r.get("사진") else "",
+                              "interest": r.get("관심 분야", "") if name == "people" else None}
+    return out
+
+
 def build_lab_pages(site):
     board_data = read_boards()
-    if any(b["audience"] for b in board_data):
-        print("알림: data/boards.csv '대상' 칸은 아직 권한에 쓰이지 않습니다(모든 회원이 읽고 씁니다).", file=sys.stderr)
     common = dict(lab=True, data={"boards": board_data})
     fake = site.local and not site.supabase
     skip = {"/assets/js/lab/api-fake.js"} if not fake else {"/assets/vendor/supabase.js", "/assets/js/lab/api-supabase.js"}
     js = lambda *groups: [s for g in groups for s in g if s not in skip] + ["/assets/js/lab/app.js"]
     site.page("/login/", "로그인", lab_shell("login"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/login/join/", "가입 신청", lab_shell("join"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    # 가입: 옛 아이디가 있는지 먼저 묻는다(10-28). 재학생 과정 고르기는 칸 규칙의 구성원 '과정'과 같은 낱말
+    rules = load_rules()
+    courses = next(c["choices"] for c in rules["tables"]["people"]["columns"] if c["name"] == "과정")
+    site.page("/login/join/", "회원가입", lab_shell("join"), scripts=js(LAB_SCRIPTS_BASE), lab=True,
+              data={"boards": board_data, "person_courses": courses})
+    # 비밀번호 찾기 · 재설정(11-02 시안 1): 옛 회원 처음 한 번 · 잊었을 때 모두 여기. 예전 주소 /login/join/?step=old 는 여기로 넘김
+    site.page("/login/find/", "비밀번호 찾기 · 재설정", lab_shell("find"), scripts=js(LAB_SCRIPTS_BASE), **common)
     site.page("/login/reset/", "비밀번호 새로 정하기", lab_shell("reset"), scripts=js(LAB_SCRIPTS_BASE), **common)
     site.page("/lab/", "회원 칸", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 게시판마다 따로 화면(구성원 · 졸업생처럼 머리 메뉴에서 열림). 글 목록 · 보기 · 쓰기 · 고치기를 한 화면이 맡는다.
     for b in board_data:
+        bp = BOARD_BAND_PHOTO.get(b["slug"])
         site.page(board_url(b), b["name"], lab_shell("photos" if b["gallery"] else "board"),
                   scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT, LAB_SCRIPTS_UPLOAD, LAB_SCRIPTS_EDIT),
-                  lab=True, data={"boards": board_data, "board": b["slug"]}, sub=b["desc"] or None)
+                  lab=True, data={"boards": board_data, "board": b["slug"]}, sub=b["desc"] or None,
+                  band_photo=bp, band_search=(board_url(b), "제목 · 글쓴이로 찾기") if bp else None)
     # 옛 주소(2026-10-27 전 /lab/board/?b=… · /lab/photos/)는 새 게시판 화면으로 넘긴다.
     site.page("/lab/board/", "게시판", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/photos/", "사진첩", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/me/", "내 정보", lab_shell("me"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/admin/", "관리", lab_shell("admin"), scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT), **common)
+    site.page("/lab/photos/", "행사 · 나들이 기록", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    # 내 정보(11-02): 내 구성원 카드의 지금 사진 · 관심 분야를 보이려고 카드 번호별 공개 값만 싣는다(공개 화면에 이미 보이는 것).
+    # 미리 보기에서는 관리 화면처럼 표를 실어, 가짜 서버가 이 브라우저 안에서 승인한 결과를 보이게 한다
+    me_data = {"boards": board_data, "cards": member_cards(rules)}
+    if fake:
+        me_data["site_tables"] = site_tables_data(rules)
+    site.page("/lab/me/", "내 정보", lab_shell("me"), scripts=js(LAB_SCRIPTS_BASE, ["/assets/js/lab/site-tables.js"], LAB_SCRIPTS_UPLOAD),
+              lab=True, data=me_data)
+    # 관리 화면. 미리 보기(가짜 로그인)에서만 공개 표 다섯 개를 화면에 실어 가짜 서버가 이 브라우저 안에서 고치게 한다.
+    # 진짜 서버에서는 서버 도우미(site-content)가 GitHub 의 표를 읽고 고친다(이 화면에 표를 싣지 않음).
+    admin_data = {"boards": board_data}
+    if fake:
+        admin_data["site_tables"] = site_tables_data(rules)
+    site.page("/lab/admin/", "관리", lab_shell("admin"), scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT, LAB_SCRIPTS_ADMIN),
+              lab=True, data=admin_data)
 
 
 # ---------------------------------------------------------------- 시작
@@ -1156,6 +1339,7 @@ def main(argv=None):
     ap.add_argument("--palette", help="이번만 다른 색 배치로 만들기(" + " · ".join(PALETTES) + "), 표는 그대로")
     ap.add_argument("--fetch-cv", action="store_true", help="회원이 '내 정보'에서 적은 CV 주소를 서버에서 받아 붙이기")
     ap.add_argument("--out", help="화면을 쓸 폴더(처음 값 _site). 시험은 임시 폴더에 만든다")
+    ap.add_argument("--check", action="store_true", help="표 · 글 검사만 하고 화면은 쓰지 않기(공개 단계 · 관리 화면 저장 뒤 확인용)")
     args = ap.parse_args(argv)
     out = Path(args.out).resolve() if args.out else OUT
     try:
@@ -1163,6 +1347,9 @@ def main(argv=None):
         if args.fetch_cv:
             fetch_member_cv(site)
         build_pages(site)
+        if args.check:
+            print(f"표 · 글 검사 통과: 화면 {len(site.pages)}개를 만들 수 있습니다(쓰지는 않음).")
+            return 0
         stale = icloud_copies(out)
         site.write_all(out)
     except BuildError as e:
@@ -1173,7 +1360,7 @@ def main(argv=None):
     copies = icloud_copies(ROOT, skip={OUT, out})
     if copies:
         print(f"주의: iCloud 겹친 사본으로 보이는 것 {len(copies)}개는 쓰지 않았고 공개 화면에도 넣지 않았습니다. "
-              "원본과 비교해 필요한 고침을 원본에 옮긴 뒤 사본은 휴지통으로 옮기세요:", file=sys.stderr)
+              "원본과 비교해 필요한 고침을 원본에 옮긴 뒤 사본은 휴지통으로 옮기십시오:", file=sys.stderr)
         for p in copies:
             print(f"  {p.relative_to(ROOT)}", file=sys.stderr)
     # 끝 줄만 보는 경우가 많아 사본이 있으면 끝 줄에도 적는다

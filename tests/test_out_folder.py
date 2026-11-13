@@ -70,6 +70,15 @@ class OutFolderTest(unittest.TestCase):
             self.assertFalse((out / "assets/js/lab/api-fake.js").exists())
             self.assertIn('"backend": "none"', (out / "assets/js/lab/config.js").read_text(encoding="utf-8"))
 
+    def test_preview_open_only_in_local_build(self):
+        # 로그인 없이 게시판을 '시험회원'으로 보여 주는 것은 이 컴퓨터 미리 보기에서만(10-28). 공개용은 회원만.
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "_site"
+            build_into(out)
+            self.assertIn('"previewOpen": true', (out / "assets/js/lab/config.js").read_text(encoding="utf-8"))
+            self.assertEqual(build_into(out, local=False)[0], 0)
+            self.assertIn('"previewOpen": false', (out / "assets/js/lab/config.js").read_text(encoding="utf-8"))
+
     @unittest.skipIf(build.fcntl is None, "폴더 잠금이 없는 기기")
     def test_waits_while_another_builds(self):
         with tempfile.TemporaryDirectory() as d:

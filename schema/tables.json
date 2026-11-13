@@ -1,0 +1,79 @@
+{
+  "_설명": "관리 화면에서 고치는 공개 표 다섯 개의 칸 규칙(2026-10-28). build.py(만들 때 · --check) · 관리 화면 · 가짜 서버 · 서버 도우미(site-content)가 모두 이 파일을 읽는다. 새 과정 · 학위 · 갈래가 생기면 그 칸의 choices 에 한 줄 더한다. 칸 이름(name)은 표 첫 줄과 같아야 한다. kind: text(한 줄 글) · long(긴 글, 줄 바꿈 없음) · choice(고르기) · flag(예 또는 빈칸) · date(2026-10-28 모양) · year(네 자리 해) · email · https(https:// 주소만) · link(https:// 주소 또는 사이트 안 /주소) · photo(사진 파일 이름) · number(뜻 없는 번호) · file(관리 화면에서 고치지 않음, 그대로 둠)",
+  "version": 1,
+  "photo_pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}\\.(jpg|jpeg|png|webp)$",
+  "tables": {
+    "people": {
+      "file": "data/people.csv",
+      "label": "구성원",
+      "page": "/people/",
+      "photo_dir": "assets/img/people",
+      "number_group": "person",
+      "orderable": true,
+      "columns": [
+        {"name": "과정", "kind": "choice", "required": true, "choices": ["박사과정", "석사과정"]},
+        {"name": "이름", "kind": "text", "required": true, "max": 30},
+        {"name": "역할", "kind": "text", "max": 20, "hint": "조교 표시는 관리자 탭에서 정합니다"},
+        {"name": "영문 이름", "kind": "text", "max": 60},
+        {"name": "메일", "kind": "email", "max": 120, "hint": "'메일 공개'를 끄면 표에서 지워집니다"},
+        {"name": "메일 공개", "kind": "choice", "choices": ["보임", "아니오"], "default": "보임"},
+        {"name": "관심 분야", "kind": "long", "max": 300, "hint": "키워드를 ' · '나 쉼표로 나눕니다(본인 요청은 5개까지). 구성원 화면에서 키워드마다 나뉘어 보입니다"},
+        {"name": "사진", "kind": "photo", "hint": "세로로 긴 사진(공개 화면에서 120 × 150)"},
+        {"name": "CV 주소", "kind": "https", "max": 300, "hint": "본인이 '내 정보'에서 적은 주소가 먼저 붙습니다"},
+        {"name": "번호", "kind": "number", "auto": true, "hint": "저절로 붙습니다"}
+      ]
+    },
+    "alumni": {
+      "file": "data/alumni.csv",
+      "label": "졸업생",
+      "page": "/alumni/",
+      "photo_dir": "assets/img/alumni",
+      "number_group": "person",
+      "columns": [
+        {"name": "학위", "kind": "choice", "required": true, "choices": ["박사", "석사"]},
+        {"name": "졸업 연도", "kind": "year", "required": true},
+        {"name": "이름", "kind": "text", "required": true, "max": 30},
+        {"name": "지금 소속", "kind": "text", "max": 120},
+        {"name": "학위논문", "kind": "long", "max": 300},
+        {"name": "사진", "kind": "photo"},
+        {"name": "번호", "kind": "number", "auto": true}
+      ]
+    },
+    "news": {
+      "file": "data/news.csv",
+      "label": "소식",
+      "page": "/news/",
+      "sort": "날짜",
+      "columns": [
+        {"name": "날짜", "kind": "date", "required": true},
+        {"name": "갈래", "kind": "text", "max": 20, "suggest": ["행사", "소식", "공지"]},
+        {"name": "제목", "kind": "text", "required": true, "max": 200},
+        {"name": "글 파일", "kind": "file", "hint": "본문 글 파일은 GitHub에서만 붙입니다"},
+        {"name": "주소", "kind": "link", "max": 300, "hint": "https:// 주소"},
+        {"name": "첫 화면에", "kind": "choice", "choices": ["예", "아니오"], "default": "예"}
+      ]
+    },
+    "projects": {
+      "file": "data/projects.csv",
+      "label": "수행연구",
+      "page": "/research/projects/",
+      "columns": [
+        {"name": "연도", "kind": "year", "required": true},
+        {"name": "과제", "kind": "long", "required": true, "max": 300},
+        {"name": "진행 중", "kind": "flag"}
+      ]
+    },
+    "courses": {
+      "file": "data/courses.csv",
+      "label": "교과목",
+      "page": "/courses/",
+      "orderable": true,
+      "columns": [
+        {"name": "과목 이름", "kind": "text", "required": true, "max": 120},
+        {"name": "학기", "kind": "text", "max": 40},
+        {"name": "설명", "kind": "long", "max": 3000},
+        {"name": "그림", "kind": "choice", "choices": ["재정", "정치경제", "장기요양", "비교"], "hint": "과목 이름 왼쪽 선 그림"}
+      ]
+    }
+  }
+}

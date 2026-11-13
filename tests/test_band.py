@@ -32,9 +32,20 @@ class BandTest(unittest.TestCase):
             self.assertNotIn("명</span>", self.html[path], path)
 
     def test_inner_pages_have_line_art(self):
+        # 사진 띠 화면(세미나 게시판, 11-13 연구자 선택)은 선 그림 대신 사진을 깐다
         for path, p in self.pages.items():
-            if p["kind"] != "home":
+            if p["kind"] != "home" and not p.get("band_photo"):
                 self.assertIn('class="band-art', self.html[path], path)
+
+    def test_seminar_photo_band(self):
+        # 11-13 세미나 '가': 강의실 사진 띠 + 띠 안 찾기 칸(이 게시판 주소로 q). 회차 · 연도 칸 · 자료 표시는 넣지 않음
+        h = self.html["/board/seminar/"]
+        band = re.search(r'<div class="band band--photo">.*?</form>', h, re.S)
+        self.assertIsNotNone(band)
+        self.assertIn('src="/assets/img/photos/classroom.jpg"', band.group(0))
+        self.assertRegex(band.group(0), r'<form class="band-search"[^>]*action="/board/seminar/"')
+        self.assertIn('name="q"', band.group(0))
+        self.assertNotIn("band--photo", self.html["/board/free/"])
 
     def test_professor_cv_and_timeline(self):
         h = self.html["/professor/"]
