@@ -59,6 +59,7 @@
     return;
   }
   var URL0 = String(cfg.supabaseUrl).replace(/\/+$/, '');
+  var AAL2_PW = '2단계 인증을 켠 계정입니다. 관리 화면에서 인증 앱의 6자리를 넣은 뒤 다시 해 주십시오.';
   var sb = window.supabase.createClient(URL0, cfg.publishableKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'heconpol-auth' }
   });
@@ -571,11 +572,22 @@
     changePassword: async function (current, next) {
       var m = await needMember();
       if (!m.email) throw err('이 계정에는 메일이 없어 비밀번호를 바꾸지 못했습니다. 조교에게 문의해 주십시오.');
-      var chk = await sb.auth.signInWithPassword({ email: m.email, password: String(current || '') });
-      if (chk.error) throw err('지금 비밀번호가 맞지 않습니다.');
+      // 2단계 인증을 켠 계정(관리자)은 6자리를 넣은 로그인(aal2)에서만 비밀번호를 바꿀 수 있다(서버 규칙).
+      var lv = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (lv && lv.data && lv.data.currentLevel === 'aal1' && lv.data.nextLevel === 'aal2') throw err(AAL2_PW);
+      // 지금 비밀번호 확인은 따로 받은 일회용 로그인으로 한다(지금 로그인을 갈아 끼우면 2단계 인증이 풀림, 11-13 실서버 시험).
+      var tk = await fetch(URL0 + '/auth/v1/token?grant_type=password', { method: 'POST',
+        headers: { apikey: cfg.publishableKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: m.email, password: String(current || '') }) }).catch(function () { return null; });
+      if (!tk) throw err('처리하지 못했습니다. 잠시 뒤 다시 해 주십시오.');
+      if (!tk.ok) throw err(tk.status === 429 ? '시도가 많았습니다. 잠시 뒤 다시 해 주십시오.' : '지금 비밀번호가 맞지 않습니다.');
+      var once = await tk.json().catch(function () { return {}; });
+      if (once.access_token) fetch(URL0 + '/auth/v1/logout?scope=local', { method: 'POST',
+        headers: { apikey: cfg.publishableKey, Authorization: 'Bearer ' + once.access_token } }).catch(function () {});
       checkPassword(next);
       var r = await sb.auth.updateUser({ password: next });
       if (r.error) {
+        if (r.error.code === 'insufficient_aal') throw err(AAL2_PW);
         if (r.error.status === 422) throw err('비밀번호는 8자 이상, 영문과 숫자를 함께 넣어 주십시오. 지금 비밀번호와 같으면 바뀌지 않습니다.');
         throw fromServer(r.error);
       }
