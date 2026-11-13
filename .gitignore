@@ -42,3 +42,6 @@ __pycache__/
 # iCloud 겹친 사본('index 2.html' · 'assets 3' · 'people 2.csv'). 원본과 비교해 고침을 옮긴 뒤 휴지통으로
 * [0-9]
 * [0-9].*
+
+# Supabase 명령 도구가 하위 폴더에 만드는 임시 폴더(11-13)
+**/supabase/.temp/
