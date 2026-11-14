@@ -12,3 +12,4 @@
 ## 찾아오는 길 {#visit}
 
 서울특별시 관악구 관악로 1 서울대학교 보건대학원 221동 426호
+[지도에서 보기](https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90)

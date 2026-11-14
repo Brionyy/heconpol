@@ -314,8 +314,8 @@ class TextPagesTest(unittest.TestCase):
         src = build.read_text("about.md")
         paras = [t.strip() for t in src.split("\n\n") if t.strip() and not t.strip().startswith(("<!--", "#"))]
         self.assertEqual(len(paras), 4)
-        for t in paras:
-            self.assertIn(build.esc(t), b)
+        for t in paras:  # 문단 안 줄바꿈 · [글](주소) 링크(찾아오는 길 지도, 11-14)도 변환된 모양으로 비교
+            self.assertIn("<br>".join(build.inline_md(l, lambda u: u) for l in t.split("\n")), b)
 
     def test_one_text_size(self):
         # 크게 쓰는 줄은 교수 화면 직함 줄뿐. 다른 글 화면은 절마다 위에 먹색 가는 선
