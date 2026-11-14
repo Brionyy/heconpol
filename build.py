@@ -509,6 +509,9 @@ class Site:
         # 제목 띠 설명 한 줄(data/bands.csv: 주소, 설명). 표가 없으면 설명 없이 만든다.
         self.bands = ({r["주소"]: r.get("설명", "") for r in read_table("bands", ["주소"])}
                       if (ROOT / "data" / "bands.csv").exists() else {})
+        # 꼬리 위 기관 줄의 바깥 링크(data/orgs.csv: 제목, 설명, 주소). 2026-11-14 첫 화면 바로가기에서 옮김
+        self.orgs = read_table("orgs", ["제목", "주소"]) if (DATA / "orgs.csv").exists() else []
+        self.news_tags = True
 
     # 주소 앞에 기본 경로를 붙인다(임시 주소에서 확인할 때 씀)
     def url(self, u):
@@ -600,6 +603,24 @@ class Site:
         desc = p["description"] or self.cfg.get("소개 한 줄", "")
         if desc and not p["lab"]:
             head_extra.append(f'<meta name="description" content="{esc(desc)}">')
+        if not p["lab"]:
+            # 공유 그림 · 제목(메신저 · SNS 미리 보기, 2026-11-14 세부 마감 7절). 그림 주소는 '공개 주소'가 있으면 그 주소로 시작
+            # (미리 보기 --local 은 이 컴퓨터 주소라 사이트 안 경로 그대로)
+            img = self.url("/assets/img/og.jpg")
+            origin = self.cfg.get("공개 주소", "").strip().rstrip("/")
+            if origin.startswith("https://") and not self.local:
+                img = origin + img
+            head_extra += [
+                '<meta property="og:type" content="website">',
+                f'<meta property="og:site_name" content="{esc(name)}">',
+                f'<meta property="og:title" content="{esc(full_title)}">',
+                f'<meta property="og:description" content="{esc(desc)}">',
+                f'<meta property="og:image" content="{esc(img)}">',
+                '<meta property="og:image:width" content="1200">',
+                '<meta property="og:image:height" content="630">',
+                f'<meta property="og:locale" content="{"en_US" if p["lang"] == "en" else "ko_KR"}">',
+                '<meta name="twitter:card" content="summary_large_image">',
+            ]
         scripts = [self.asset("/assets/js/site.js")]
         for s in p["scripts"]:
             scripts.append(self.asset(s))
@@ -671,6 +692,7 @@ class Site:
             "body": p["body"],
             "aff_ko": esc(self.url("/assets/img/logos/gsph_ko.png")),
             "aff_snu": esc(self.url("/assets/img/logos/snu_signature_ko.png")),
+            "orgs": "" if p["lab"] else self._orgs(),
             "foot_name": esc(f'{name} · {self.cfg.get("영문 이름", "")}'),
             "foot_addr": esc(self.cfg.get("주소", "")),
             "foot_mail": self._foot_mail(),
@@ -688,6 +710,15 @@ class Site:
             return values[key]
 
         return re.sub(r"\{\{\s*([a-z_]+)\s*\}\}", fill, self.template)
+
+    def _orgs(self):
+        """꼬리 위 기관 줄의 바깥 링크(새 창 아님, 원래 바로가기 카드와 같게)."""
+        if not self.orgs:
+            return ""
+        links = "".join(
+            f'<li><a href="{esc(safe_url(o["주소"]))}" rel="noopener noreferrer">{esc(o["제목"])}</a></li>'
+            for o in self.orgs)
+        return f'<ul class="aff-links" aria-label="기관 · 관련 사이트">{links}</ul>'
 
     def _foot_mail(self):
         m = self.cfg.get("대표 메일", "")
@@ -822,7 +853,21 @@ def build_pages(site):
     # 공통으로 쓰는 표
     news = read_table("news", ["날짜", "제목"])
     news.sort(key=lambda r: r["날짜"], reverse=True)
+    # 소식 갈래가 하나뿐이면(지금 모두 '행사') 줄마다 같은 꼬리표를 붙이지 않는다(2026-11-14 AI 티 빼기: 가까운 정보 되풀이)
+    site.news_tags = len({n["갈래"] for n in news if n.get("갈래")}) > 1
     areas = read_table("areas", ["이름"])
+
+    def quick_fact(path):
+        """바로가기 카드의 '설명' 칸이 비었을 때 쓰는 실제 사실 한 줄(표에서 셈)."""
+        if path == "/courses/":
+            return f"교과목 {len(read_table('courses', ['과목 이름']))}개"
+        if path == "/alumni/":
+            al = read_table("alumni", ["졸업 연도", "이름"])
+            return f"졸업생 {len(al)}명 · {min(a['졸업 연도'][:4] for a in al)}년부터" if al else ""
+        row = next((r for r in read_table("pages", ["주소", "제목", "글 파일"]) if r["주소"] == path), None)
+        if row:
+            return " · ".join(x for x in (row.get("큰 제목") or row["제목"], row.get("작은 제목")) if x)
+        return ""
 
     # ---- 첫 화면
     slides = read_table("slides", ["사진", "제목"])
@@ -840,7 +885,10 @@ def build_pages(site):
     for i, s in enumerate(slides):
         btn = ""
         if s.get("단추 주소"):
-            btn = (f'<a class="btn-line" href="{esc(url(s["단추 주소"]))}">{esc(s.get("단추 이름") or "자세히")}'
+            # 한글 단추는 자간 0, 영문 대문자 단추([LAB INTRODUCTION])만 조금 넓힌다(2026-11-14 AI 티 빼기: 한글에 넓힌 자간 쓰지 않음)
+            name = s.get("단추 이름") or "자세히"
+            latin = "" if HANGUL.search(name) else " btn-line--latin"
+            btn = (f'<a class="btn-line{latin}" href="{esc(url(s["단추 주소"]))}">{esc(name)}'
                    f'<span aria-hidden="true" class="arw-r"></span></a>')
         small = f'<p class="hero-s">{esc(s["작은 줄"])}</p>' if s.get("작은 줄") else ""
         line = f'<p class="hero-p">{esc(s["한 줄"])}</p>' if s.get("한 줄") else ""
@@ -856,7 +904,7 @@ def build_pages(site):
                f'src="{esc(url("/assets/img/photos/" + s["사진"]))}" alt="{esc(s.get("사진 설명", ""))}"'
                f'{" fetchpriority=\"high\"" if i == 0 else " loading=\"lazy\""}>') +
             f'<div class="hero-center"><div class="rule"></div>'
-            f'<p class="kick">{esc(s.get("위 작은 줄", ""))}</p>'
+            + (f'<p class="kick">{esc(s["위 작은 줄"])}</p>' if s.get("위 작은 줄") else "") +
             f'<{heading} class="hero-h">{esc(s["제목"])}</{heading}>{line}{small}{btn}</div>'
             + (f'<p class="slide-credit">사진 <a href="{esc(safe_url(credit_of[s["사진"]]["주소"]))}" rel="noopener noreferrer">'
                f'{esc(credit_of[s["사진"]]["만든 사람"])}</a> · {esc(credit_of[s["사진"]]["이용 조건"])}</p>'
@@ -870,15 +918,28 @@ def build_pages(site):
             f'<span>{len(slides):02d}</span></div>')
     hero = f'<section class="hero" aria-label="연구실 사진" data-count="{len(slides)}">{"".join(slide_html)}{controls}</section>'
 
+    # 바로가기 세 개(2026-11-14 AI 티 빼기, 연구자 '추천대로'): 사진 슬라이드와 겹치지 않는 사이트 안 화면(교수 · 교과목 · 졸업생).
+    # '설명' 칸을 비우면 그 화면의 표에서 센 실제 사실을 쓴다(사람 수 · 과목 수가 바뀌면 저절로 따라감)
     quick_html = "".join(
         f'<a class="quick-card" href="{esc(url(q["주소"]))}"'
         f'{" rel=\"noopener noreferrer\"" if q["주소"].startswith("http") else ""}>'
         f'<b>{esc(q["제목"])}</b>'
-        f'<span class="quick-p">{esc(q.get("설명", ""))}<span aria-hidden="true" class="arw-r"></span></span></a>'
+        f'<span class="quick-p">{esc(q.get("설명") or quick_fact(q["주소"]))}<span aria-hidden="true" class="arw-r"></span></span></a>'
         for q in quick)
+    # 연구 분야 세 칸: 소개 한 줄 아래에 그 분야 글 수와 연도(연구 분야 글 표에서 셈, 지어낸 수 없음)
+    posts_all = read_table("research_posts", ["분야", "날짜", "제목"])
+
+    def area_fact(a):
+        years = sorted(p["날짜"][:4] for p in posts_all if p["분야"] == a["이름"])
+        if not years:
+            return ""
+        span = years[0] if years[0] == years[-1] else f"{years[0]}~{years[-1]}"
+        href = url("/research/") + (f'#{a["영문 주소"]}' if a.get("영문 주소") else "")
+        return f'<a class="area-more" href="{esc(href)}">글 {len(years)}편 · {span}년<span aria-hidden="true" class="arw-r"></span></a>'
+
     area_html = "".join(
         f'<div class="area"><h3>{esc(a["이름"])}</h3>'
-        f'<small>{esc(a.get("영문", ""))}</small><p>{esc(a.get("한 줄", ""))}</p></div>'
+        f'<small>{esc(a.get("영문", ""))}</small><p>{esc(a.get("한 줄", ""))}</p>{area_fact(a)}</div>'
         for a in areas)
     home_news = [n for n in news if not is_no(n.get("첫 화면에", ""))][:3]
     news_html = "".join(news_row(site, n) for n in home_news) or '<p class="empty">아직 소식이 없습니다.</p>'
@@ -1064,7 +1125,7 @@ def alum_leaf(site, r):
 def news_row(site, n, short=False):
     """소식 한 줄. short 이면 날짜를 '월.일'만 쓴다(해마다 묶은 소식 화면)."""
     href = f'/news/{Path(n["글 파일"]).stem}/' if n.get("글 파일") else (n.get("주소") or "")
-    tag = f'<span class="tag">{esc(n["갈래"])}</span>' if n.get("갈래") else ""
+    tag = f'<span class="tag">{esc(n["갈래"])}</span>' if n.get("갈래") and getattr(site, "news_tags", True) else ""
     shown = ".".join(n["날짜"].split("-")[1:]) if short else n["날짜"].replace("-", ".")
     inner = (f'<time datetime="{esc(n["날짜"])}">{esc(shown)}</time>'
              f'<span class="t">{tag}{text_lang(n["제목"])}</span>')
