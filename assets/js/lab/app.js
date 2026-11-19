@@ -1157,26 +1157,27 @@
     var trigger = h('button', { type: 'button', class: 'avatar-trigger', 'aria-label': '프로필 선택', 'aria-haspopup': 'dialog' },
       face, h('span', { class: 'avatar-edit', 'aria-hidden': 'true' }, '✎'));
     trigger.addEventListener('click', function () {
-      form.elements.avatar.value = current;
+      var selected = Array.from(form.elements.avatar).find(function (input) { return input.value === current; });
+      selected.checked = true;
       button.disabled = true;
       msg.replaceChildren();
       preview.replaceChildren(picture(byId.get(current)));
       dialog.showModal();
-      var tile = options.querySelector('input:checked').parentNode;
+      var tile = selected.parentNode;
       var row = tile.closest('.avatar-row');
       gallery.scrollTop = row ? row.offsetTop + tile.offsetTop - (gallery.clientHeight - tile.offsetHeight) / 2 : 0;
     });
     dialog.addEventListener('cancel', function (event) {
       if (options.inert) event.preventDefault();
     });
-    options.addEventListener('change', function () {
-      button.disabled = form.elements.avatar.value === current;
-      preview.replaceChildren(picture(byId.get(form.elements.avatar.value)));
+    options.addEventListener('change', function (event) {
+      button.disabled = event.target.value === current;
+      preview.replaceChildren(picture(byId.get(event.target.value)));
       msg.replaceChildren();
     });
     form.addEventListener('submit', async function (event) {
       event.preventDefault();
-      var chosen = form.elements.avatar.value;
+      var chosen = options.querySelector('input:checked').value;
       if (options.inert || chosen === current) return;
       options.inert = true;
       button.disabled = true;
