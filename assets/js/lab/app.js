@@ -1287,7 +1287,7 @@
       h('div', { class: 'reqcards' }, nowCard, h('span', { class: 'reqcards-arrow', 'aria-hidden': 'true' }, '→'), wantSlot),
       h('div', { class: 'cardreq-inputs' },
         h('div', { class: 'field' }, h('span', { class: 'field-l' }, '사진'), pin, drop),
-        kw ? h('div', { class: 'field' }, h('span', { class: 'field-l' }, '관심 분야 키워드 ', h('span', { class: 'm-pill kw-opt' }, '선택 사항'), ' 최대 ' + L.kw.max + '개'), kw.el)
+        kw ? h('div', { class: 'field' }, h('span', { class: 'field-l' }, '관심 분야 키워드', h('span', { class: 'm-pill kw-opt' }, '선택'), h('span', { class: 'kw-max' }, '최대 ' + L.kw.max + '개')), kw.el)
           : h('p', { class: 'm-side-note' }, '졸업생 소개에는 관심 분야가 없어 사진만 바꿉니다.')),
       h('div', { class: 'btns' }, sbtn, sNote), msg);
     form.addEventListener('submit', async function (e) {
