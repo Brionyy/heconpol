@@ -93,6 +93,8 @@
     var loggedIn = false;
     try {
       if (localStorage.getItem('labFake.session')) loggedIn = true;
+      var hc = localStorage.getItem('heconpol-auth');
+      if (!loggedIn && hc && hc.indexOf('access_token') !== -1) loggedIn = true;
       for (var i = 0; !loggedIn && i < localStorage.length; i++) {
         var k = localStorage.key(i);
         if (k && /^sb-.*-auth-token$/.test(k)) {

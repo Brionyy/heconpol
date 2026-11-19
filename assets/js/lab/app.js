@@ -440,12 +440,11 @@
     }
     var pins = items.filter(function (p) { return p.pinned; }), rest = items.filter(function (p) { return !p.pinned; });
     pins.forEach(function (p) { rows.appendChild(row(p)); });
-    var thisYear = new Date().getFullYear(), yr = null;
-    rest.forEach(function (p, i) {
+    var yr = null;
+    rest.forEach(function (p) {
       var y = new Date(p.created_at).getFullYear();
       if (y !== yr) {
-        // 첫 쪽 맨 위가 올해 글이면 연도 줄은 빼고 시작한다
-        if (!(i === 0 && page === 1 && y === thisYear)) rows.appendChild(h('li', { class: 'bd-year', 'aria-hidden': 'true' }, y + '년'));
+        rows.appendChild(h('li', { class: 'bd-year', 'aria-hidden': 'true' }, y + '년'));
         yr = y;
       }
       rows.appendChild(row(p));
