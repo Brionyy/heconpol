@@ -992,34 +992,27 @@ def build_pages(site):
         sec_html = by_section(md(src))
         is_about = r["주소"] == "/about/"
         if is_about:
-            photo_src = esc(url("/assets/img/photos/gsph221.jpg"))
-            visit_head = (
-                '<div class="visit-card">'
-                '<div class="visit-media">'
-                f'<figure class="visit-photo"><img src="{photo_src}" alt="서울대학교 보건대학원 221동 외관" loading="lazy">'
-                '<figcaption>서울대학교 보건대학원 221동 · 426호</figcaption></figure>'
-                '<div class="visit-map">'
-                '<iframe class="visit-iframe" title="서울대학교 보건대학원 221동 위치 지도" '
-                'src="https://maps.google.com/maps?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99&t=&z=16&ie=UTF8&iwloc=&output=embed" '
-                'loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>'
-                '</div></div>'
-                '<div class="visit-info"><div class="visit-addr">'
-            )
-            visit_tail = (
-                '</div>'
-                '<p class="visit-transit">2호선 서울대입구역 3번 출구(5511 · 5513번) · 신림선 관악산역 1번 출구(5516번) → 보건대학원 앞 하차</p>'
+            photo_src = esc(url("/assets/img/photos/gsph221-visit.webp"))
+            visit_details = (
+                '<p class="visit-transit">2호선 서울대입구역 3번 출구에서 5511·5513번<br>'
+                '신림선 관악산역 1번 출구에서 5516번<br>'
+                '보건대학원 앞에서 내리시면 됩니다.</p>'
                 '<div class="visit-apps">'
-                '<a class="visit-app visit-app--naver" href="https://map.naver.com/p/search/%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
-                '<span class="visit-dot" aria-hidden="true"></span>네이버 지도</a>'
-                '<a class="visit-app visit-app--kakao" href="https://map.kakao.com/?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
-                '<span class="visit-dot" aria-hidden="true"></span>카카오맵</a>'
-                '<a class="visit-app visit-app--google" href="https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
-                '<span class="visit-dot" aria-hidden="true"></span>Google 지도</a>'
-                '</div></div></div>'
+                '<a href="https://map.naver.com/p/search/%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">네이버 지도</a>'
+                '<a href="https://map.kakao.com/?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">카카오맵</a>'
+                '<a href="https://www.google.com/maps/search/?api=1&amp;query=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99" target="_blank" rel="noopener noreferrer">Google 지도</a>'
+                '</div>'
+                '<div class="visit-media">'
+                '<iframe class="visit-map" title="서울대학교 보건대학원 221동 위치 지도" '
+                'src="https://maps.google.com/maps?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99&amp;t=&amp;z=16&amp;ie=UTF8&amp;iwloc=&amp;output=embed" '
+                'loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>'
+                f'<img class="visit-photo" src="{photo_src}" alt="입구와 표지석이 보이는 서울대학교 보건대학원 221동 외관" '
+                'width="683" height="512" loading="lazy">'
+                '</div>'
             )
             sec_html = re.sub(
                 r'(<h2 id="visit">.*?</h2><div class="sec-body">)(.*?)(</div></section>)',
-                lambda m: m.group(1) + visit_head + m.group(2) + visit_tail + m.group(3),
+                lambda m: m.group(1) + '<div class="visit-address">' + m.group(2) + '</div>' + visit_details + m.group(3),
                 sec_html,
                 count=1,
                 flags=re.S,
