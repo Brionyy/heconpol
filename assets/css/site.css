@@ -2683,6 +2683,7 @@ html .btn[disabled],
   gap: 8px;
   margin-bottom: 6px;
 }
+.comment-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .comment .c-meta .btn {
   min-height: auto;
   padding: 2px 7px;

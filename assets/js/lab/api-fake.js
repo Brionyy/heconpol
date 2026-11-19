@@ -470,6 +470,8 @@
       var s = await loadAll(); var u = needMember(s);
       var p = s.posts.filter(function (x) { return x.id === Number(id); })[0];
       if (!visiblePost(s, u, p)) throw err('없는 글이거나 볼 수 없는 글입니다.');
+      var avatarIds = new Map(s.users.filter(function (user) { return user.status !== 'withdrawn'; })
+        .map(function (user) { return [user.id, user.avatar_id]; }));
       return delay({
         post: { id: p.id, board: p.board, title: p.title, body_md: p.body_md, body_html_legacy: p.body_html_legacy || null,
           author_id: p.author_id, author_name: nameOf(s, p.author_id), created_at: p.created_at, updated_at: p.updated_at, hidden: p.hidden,
@@ -479,7 +481,7 @@
           can_comment: !isDraft(p) && (settingsOf(p).allow_comments || u.role === 'admin'),
           can_edit: !p.old && p.author_id === u.id, can_delete: !p.old && (p.author_id === u.id || u.role === 'admin'), can_hide: !p.old && u.role === 'admin' && !isDraft(p) },
         comments: s.comments.filter(function (c) { return c.post_id === p.id && (!c.hidden || u.role === 'admin'); }).map(function (c) {
-          return { id: c.id, body: c.body, author_name: nameOf(s, c.author_id), created_at: c.created_at, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
+          return { id: c.id, body: c.body, avatar_id: avatarIds.get(c.author_id), author_name: nameOf(s, c.author_id), created_at: c.created_at, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
         }),
         attachments: s.attachments.filter(function (a) { return a.post_id === p.id; }).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };

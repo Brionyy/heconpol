@@ -314,7 +314,7 @@
       var p = await run(sb.from('posts').select('id,board,title,body_md,body_html_legacy,author_id,hidden,legacy_id,created_at,updated_at,status,tags,cover_path,visibility,allow_comments,pinned')
         .eq('id', Number(id)).maybeSingle());
       if (!p) throw err('없는 글이거나 볼 수 없는 글입니다.');
-      var cs = await run(sb.from('comments').select('id,body,author_id,created_at,hidden').eq('post_id', p.id).order('created_at', { ascending: true }));
+      var cs = await run(sb.from('comment_list').select('id,body,author_id,created_at,hidden,avatar_id').eq('post_id', p.id).order('created_at', { ascending: true }));
       var as = await run(sb.from('attachments').select('id,bucket,path,original_name,mime,size_bytes').eq('post_id', p.id).order('id', { ascending: true }));
       var names = await namesOf([p.author_id].concat((cs || []).map(function (c) { return c.author_id; })));
       var nameOf = function (uid) { return (uid && names[uid]) || '탈퇴한 회원'; };
@@ -328,7 +328,7 @@
           // 옮겨 온 글(옛 HTML 본문)은 편집기로 고치면 본문이 사라지므로 고치기는 막고 지우기만
           can_edit: mine && !p.body_html_legacy, can_delete: mine || admin, can_hide: admin && !draft },
         comments: (cs || []).map(function (c) {
-          return { id: c.id, body: c.body, author_name: nameOf(c.author_id), created_at: c.created_at, can_delete: c.author_id === m.id || admin };
+          return { id: c.id, body: c.body, avatar_id: c.avatar_id, author_name: nameOf(c.author_id), created_at: c.created_at, can_delete: c.author_id === m.id || admin };
         }),
         attachments: (as || []).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };

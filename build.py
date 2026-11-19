@@ -1423,17 +1423,6 @@ def build_lab_pages(site):
     site.page("/login/find/", "비밀번호 찾기 · 재설정", lab_shell("find"), scripts=js(LAB_SCRIPTS_BASE), **common)
     site.page("/login/reset/", "비밀번호 새로 정하기", lab_shell("reset"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 게시판마다 따로 화면(구성원 · 졸업생처럼 머리 메뉴에서 열림). 글 목록 · 보기 · 쓰기 · 고치기를 한 화면이 맡는다.
-    for b in board_data:
-        bp = BOARD_BAND_PHOTO.get(b["slug"])
-        site.page(board_url(b), b["name"], lab_shell("photos" if b["gallery"] else "board"),
-                  scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT, LAB_SCRIPTS_UPLOAD, LAB_SCRIPTS_EDIT),
-                  lab=True, data={"boards": board_data, "board": b["slug"]}, sub=b["desc"] or None,
-                  band_photo=bp, band_search=(board_url(b), "제목 · 글쓴이로 찾기") if bp else None)
-    # 옛 주소(2026-10-27 전 /lab/board/?b=… · /lab/photos/)는 새 게시판 화면으로 넘긴다.
-    site.page("/lab/board/", "게시판", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/photos/", "사진첩", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    # 내 정보(11-02): 내 구성원 카드의 지금 사진 · 관심 분야를 보이려고 카드 번호별 공개 값만 싣는다(공개 화면에 이미 보이는 것).
-    # 미리 보기에서는 관리 화면처럼 표를 실어, 가짜 서버가 이 브라우저 안에서 승인한 결과를 보이게 한다
     avatars = []
     for row in read_table("avatars", ["번호", "이름", "분류"]):
         key = row["번호"]
@@ -1441,6 +1430,17 @@ def build_lab_pages(site):
         if not re.fullmatch(r"[a-z0-9-]+", key) or not (ROOT / path[1:]).is_file():
             raise BuildError(f"data/avatars.csv 캐릭터 '{key}'의 이미지 파일을 확인하십시오.")
         avatars.append({"id": key, "name": row["이름"], "group": row["분류"], "src": site.asset(path)})
+    for b in board_data:
+        bp = BOARD_BAND_PHOTO.get(b["slug"])
+        site.page(board_url(b), b["name"], lab_shell("photos" if b["gallery"] else "board"),
+                  scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT, LAB_SCRIPTS_UPLOAD, LAB_SCRIPTS_EDIT),
+                  lab=True, data={"boards": board_data, "board": b["slug"], "avatars": avatars}, sub=b["desc"] or None,
+                  band_photo=bp, band_search=(board_url(b), "제목 · 글쓴이로 찾기") if bp else None)
+    # 옛 주소(2026-10-27 전 /lab/board/?b=… · /lab/photos/)는 새 게시판 화면으로 넘긴다.
+    site.page("/lab/board/", "게시판", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    site.page("/lab/photos/", "사진첩", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    # 내 정보(11-02): 내 구성원 카드의 지금 사진 · 관심 분야를 보이려고 카드 번호별 공개 값만 싣는다(공개 화면에 이미 보이는 것).
+    # 미리 보기에서는 관리 화면처럼 표를 실어, 가짜 서버가 이 브라우저 안에서 승인한 결과를 보이게 한다
     member_data = {"boards": board_data, "cards": member_cards(rules), "avatars": avatars}
     site.page("/lab/", "내 정보", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), lab=True, data=member_data)
     me_data = member_data.copy()

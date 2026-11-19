@@ -577,8 +577,12 @@
 
   // 11-02: 댓글을 받지 않는 글(allow_comments 끔)은 쓰는 칸 대신 안내만, 이미 달린 댓글은 그대로 보인다(관리자는 쓰는 칸이 남음)
   function commentsBox(api, p, comments) {
+    var avatars = new Map((L.pageData().avatars || []).map(function (a) { return [a.id, a.src]; }));
     var list = h('div', {}, comments.length ? comments.map(function (c) {
-      return h('div', { class: 'comment' }, h('span', { class: 'c-meta' }, c.author_name + ' · ' + L.fmtDate(c.created_at),
+      var picture = avatars.get(c.avatar_id);
+      return h('div', { class: 'comment' }, h('span', { class: 'c-meta' },
+        picture ? h('img', { class: 'comment-avatar', src: picture, alt: '', width: 32, height: 32 }) : null,
+        c.author_name + ' · ' + L.fmtDate(c.created_at),
         c.can_delete ? h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: async function () {
           if (!confirm('댓글을 지우시겠습니까?')) return;
           await api.deleteComment(c.id); location.reload();
