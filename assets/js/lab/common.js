@@ -220,6 +220,18 @@
         adminZone,
         h('div', { class: 'rail-foot' }, signOutBtn(api, 'btn-on-navy'))));
     requestAnimationFrame(function () { slideMark(navList, 'rail'); });
+    // 사이드바 내용이 오른쪽 본문보다 길어져 푸터와 겹치는 현상 원천 차단
+    var railIn = rail.querySelector('.lab-rail-in');
+    var rootEl = wrap ? wrap.querySelector('.lab-root') : null;
+    if (railIn && rootEl) {
+      var syncRailH = function () {
+        var narrow = window.matchMedia && matchMedia('(max-width: 1040px)').matches;
+        rootEl.style.minHeight = narrow ? '' : Math.max(720, Math.ceil(railIn.offsetHeight + 32)) + 'px';
+      };
+      requestAnimationFrame(syncRailH);
+      if (window.ResizeObserver) new ResizeObserver(syncRailH).observe(railIn);
+      window.addEventListener('resize', syncRailH);
+    }
     return [rail, fakeBadge()];
   }
 

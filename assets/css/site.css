@@ -2640,6 +2640,15 @@ html .btn[disabled],
 }
 
 /* ---------- 2026-11-19 좌측 사이드바 관리 구역 분리 · 아이콘 · 카드형 탭 업그레이드 ---------- */
+@media (min-width: 1041px) {
+  .lab-rail-in {
+    gap: var(--sp-4);
+    padding: var(--sp-5) var(--sp-5) var(--sp-6) var(--gutter);
+  }
+  .rail-who { padding-bottom: var(--sp-3); }
+  .rail-foot { padding-top: var(--sp-4); }
+  .wrap.lab-has-rail > .lab-root { min-height: 860px; }
+}
 .rail-ico {
   flex: none;
   display: inline-flex;
