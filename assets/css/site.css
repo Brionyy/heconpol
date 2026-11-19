@@ -260,10 +260,9 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .grp .rows > li:first-child, .grp .news-list > .row:first-child { padding-top: 0; }
 .grp .tbl { margin: 0; }
 .grp .tbl thead th { padding-top: 0; }
-/* 수행연구 한 줄: 글은 36em(영어 약 70자)까지, '진행 중'은 마지막 낱말 바로 뒤 */
+/* 수행연구 한 줄: 글은 36em(영어 약 70자)까지 */
 .proj > li { padding: var(--sp-3) 0; }
 .proj .t { display: block; max-width: var(--measure); }
-.proj .tag { margin: 0 0 0 var(--sp-2); }
 /* 접은 연도: 연도 · 건수 · 펼침 표시만 보이고 줄 전체가 누르는 자리(자바스크립트 없이) */
 .grp-fold { padding-top: 0; }
 .grp:not(.grp-fold) + .grp-fold { margin-top: var(--sp-8); }
@@ -2855,11 +2854,6 @@ html .btn[disabled],
 /* 찾아오는 길 */
 .prose .visit-address p {
   margin-bottom: var(--sp-3);
-}
-.prose .visit-transit {
-  margin-bottom: var(--sp-2);
-  color: var(--sub);
-  font-size: var(--fs-meta);
 }
 .visit-apps {
   display: flex;

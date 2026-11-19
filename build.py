@@ -994,9 +994,6 @@ def build_pages(site):
         if is_about:
             photo_src = esc(url("/assets/img/photos/gsph221-visit.webp"))
             visit_details = (
-                '<p class="visit-transit">2호선 서울대입구역 3번 출구에서 5511·5513번<br>'
-                '신림선 관악산역 1번 출구에서 5516번<br>'
-                '보건대학원 앞에서 내리시면 됩니다.</p>'
                 '<div class="visit-apps">'
                 '<a href="https://map.naver.com/p/search/%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">네이버 지도</a>'
                 '<a href="https://map.kakao.com/?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">카카오맵</a>'
@@ -1143,10 +1140,9 @@ def anchor_name(text):
 
 
 def project_li(pr):
-    """수행연구 한 줄. '진행 중'은 제목 마지막 낱말 바로 뒤에 붙어 긴 제목이 꺾여도 떨어지지 않는다."""
-    tag = ' <span class="tag">진행 중</span>' if pr.get("진행 중") in ("예", "O", "o") else ""
+    """수행연구 과제와 맡긴 곳을 한 줄에 표시한다."""
     org = f' <span class="muted">{esc(pr["맡긴 곳"])}</span>' if pr.get("맡긴 곳") else ""
-    return f'<li><span class="t">{text_lang(pr["과제"])}{tag}{org}</span></li>'
+    return f'<li><span class="t">{text_lang(pr["과제"])}{org}</span></li>'
 
 
 def lineage(site, alumni):
