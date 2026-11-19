@@ -1339,7 +1339,7 @@
     var kwNow = startKw.slice();
     function sameKw(a, b) { return a.join(L.kw.sep) === b.join(L.kw.sep); }
     function drawWant() {
-      var picSrc = blobUrl || pendUrl || (card && card.photo_url) || null;
+      var picSrc = blobUrl || pendUrl;
       wantSlot.replaceChildren(mini('요청한 모습', face(picSrc, '요청한 사진'), kwNow,
         { pic: !!(blobUrl || pendUrl), kw: withInterest && !sameKw(kwNow, cur) }));
     }
