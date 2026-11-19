@@ -1114,7 +1114,7 @@
   function avatarPicker(api, profile, face, card) {
     var avatars = L.pageData().avatars || [];
     var current = avatars.some(function (a) { return a.id === profile.avatar_id; }) ? profile.avatar_id : '';
-    var defaultProfile = { id: '', name: card && card.photo_url ? '기본 구성원 사진' : '기본 프로필', src: card && card.photo_url };
+    var defaultProfile = { id: '', name: '기본 사진', src: card && card.photo_url };
     var byId = new Map(avatars.map(function (a) { return [a.id, a]; }));
     byId.set('', defaultProfile);
 
