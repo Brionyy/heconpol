@@ -107,7 +107,7 @@
     document.querySelectorAll('.nav-list > li > a').forEach(function (a) {
       var href = a.getAttribute('href') || '';
       if (/\/login\/join\/?$/.test(href)) {
-        a.parentElement.hidden = true;
+        a.parentElement.remove();
       } else if (/\/login\/?$/.test(href)) {
         a.textContent = '내 정보';
         a.setAttribute('href', href.replace(/\/login\/?$/, '/lab/me/'));
