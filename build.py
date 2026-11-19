@@ -1092,7 +1092,7 @@ def build_pages(site):
     groups = [group(y, f"{len(ns)}건", f'<div class="news-list short">{"".join(news_row(site, n, short=True) for n in ns)}</div>',
                     ident=f"y{y}", label_cls="num") for y, ns in by_year.items()]
     site.page("/news/", "소식", f'<div class="wrap list">{"".join(groups) or "<p class=\"empty\">아직 소식이 없습니다.</p>"}</div>',
-              index=[(f"y{y}", y, f"{len(ns)}건") for y, ns in by_year.items()], art=art_ripples())
+              art=art_ripples())
     for n in news:
         if n.get("글 파일"):
             article_page(site, n, "news", "소식", "/news/")

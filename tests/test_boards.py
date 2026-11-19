@@ -105,7 +105,7 @@ class BoardMenuTest(unittest.TestCase):
         top = [n for n in names if not n[2]]
         self.assertEqual([t[0] for t in top], ["연구실", "수행연구와 세미나", "연구활동", "커뮤니티", "Login", "Join"])
         nav = site.nav("/board/free/")
-        self.assertIn('<a href="/news/" aria-current="page">커뮤니티</a>', nav)
+        self.assertIn('<a href="/board/free/" aria-current="page">커뮤니티</a>', nav)
         self.assertIn('<a href="/board/free/" aria-current="page">자유게시판</a>', nav)
         self.assertNotIn('>EN<', nav)
 

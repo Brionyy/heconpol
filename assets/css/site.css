@@ -2606,3 +2606,35 @@ html .btn[disabled],
     background: linear-gradient(90deg, rgba(19, 32, 58, 0), rgba(19, 32, 58, .96) 78%);
   }
 }
+
+/* ---------- 2026-11-19 댓글 영역 본문과 명확히 구분 ---------- */
+.comments {
+  margin-top: var(--sp-7);
+  padding: var(--sp-6) var(--sp-7);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--navy);
+  border-radius: 12px;
+}
+.comments h3 {
+  margin: 0 0 var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-h3);
+  color: var(--navy);
+}
+.comment {
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+.comments form.form {
+  margin-top: var(--sp-5);
+  padding: var(--sp-5);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+@media (max-width: 640px) {
+  .comments { padding: var(--sp-5) var(--sp-4); }
+  .comments form.form { padding: var(--sp-4); }
+}
