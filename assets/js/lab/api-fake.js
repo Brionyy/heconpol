@@ -631,16 +631,18 @@
       var s = load(); var u = needMember(s);
       await seedPhotos(s);
       s = await loadAll();
-      return delay(s.posts.filter(function (p) { return (boardOf(p.board) || {}).gallery && !isDraft(p) && visiblePost(s, u, p); })
+      var out = [];
+      s.posts.filter(function (p) { return (((boardOf(p.board) || {}).gallery || p.board === 'free') && !isDraft(p) && visiblePost(s, u, p)); })
         .sort(function (a, b) { return b.created_at.localeCompare(a.created_at); })
-        .map(function (p) {
-          // 대표 사진: 글에 고른 사진(cover_path)이 아직 달려 있으면 그것, 아니면 첫 사진(11-13 행사 기록 연대표)
-          var pics = s.attachments.filter(function (a) { return a.post_id === p.id && a.bucket === 'gallery'; });
+        .forEach(function (p) {
+          var pics = s.attachments.filter(function (a) { return a.post_id === p.id && (a.bucket === 'gallery' || /^image\//i.test(a.mime || '')); });
+          var isGal = !!(boardOf(p.board) || {}).gallery;
+          if (!isGal && !pics.length) return;
           var c = coverOf(s, p);
           var cover = (c && pics.filter(function (a) { return a.path === c; })[0]) || pics[0] || null;
-          return { id: p.id, title: p.title, created_at: p.created_at, author_name: nameOf(s, p.author_id), cover: cover,
-            count: pics.length };
-        }));
+          out.push({ id: p.id, board: p.board, title: p.title, created_at: p.created_at, author_name: nameOf(s, p.author_id), cover: cover, count: pics.length });
+        });
+      return delay(out);
     },
 
     myProfile: async function () {

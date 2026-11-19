@@ -468,22 +468,29 @@
 
     galleryList: async function () {
       await needMember();
-      var slugs = boards().filter(function (b) { return b.gallery; }).map(function (b) { return b.slug; });
+      var gSlugs = boards().filter(function (b) { return b.gallery; }).map(function (b) { return b.slug; });
+      var slugs = gSlugs.slice();
+      if (slugs.indexOf('free') === -1) slugs.push('free');
       if (!slugs.length) return [];
-      var posts = await run(sb.from('post_list').select('id,title,created_at,author_name,cover_path').in('board', slugs)
+      var posts = await run(sb.from('post_list').select('id,board,title,created_at,author_name,cover_path').in('board', slugs)
         .order('created_at', { ascending: false }).limit(1000));
       posts = posts || [];
       var pics = [];
       for (var i = 0; i < posts.length; i += 200) {
         var ids = posts.slice(i, i + 200).map(function (p) { return p.id; });
-        pics = pics.concat(await run(sb.from('attachments').select('id,post_id,owner_id,bucket,path,original_name,mime,size_bytes,created_at')
-          .in('post_id', ids).eq('bucket', 'gallery').order('id', { ascending: true })) || []);
+        var chunk = await run(sb.from('attachments').select('id,post_id,owner_id,bucket,path,original_name,mime,size_bytes,created_at')
+          .in('post_id', ids).order('id', { ascending: true })) || [];
+        pics = pics.concat(chunk.filter(function (a) { return a.bucket === 'gallery' || /^image\//i.test(a.mime || ''); }));
       }
-      return posts.map(function (p) {
+      var out = [];
+      posts.forEach(function (p) {
         var mine = pics.filter(function (a) { return a.post_id === p.id; });
+        var isGal = gSlugs.indexOf(p.board) !== -1;
+        if (!isGal && !mine.length) return;
         var cover = (p.cover_path && mine.filter(function (a) { return a.path === p.cover_path; })[0]) || mine[0] || null;
-        return { id: p.id, title: p.title, created_at: p.created_at, author_name: p.author_name, cover: cover, count: mine.length };
+        out.push({ id: p.id, board: p.board, title: p.title, created_at: p.created_at, author_name: p.author_name, cover: cover, count: mine.length });
       });
+      return out;
     },
 
     myProfile: async function () {

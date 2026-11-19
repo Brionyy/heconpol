@@ -984,7 +984,8 @@
     years.forEach(function (y) {
       var line = h('ol', { class: 'ev-line' });
       byYear[y].forEach(function (a) {
-        var href = L.boardPath(gb) + '?id=' + a.id;
+        var targetBoard = (a.board && L.boardBySlug(a.board)) || gb;
+        var href = L.boardPath(targetBoard) + '?id=' + a.id;
         var frame = h('a', { class: 'ev-pic', href: href, tabindex: '-1', 'aria-hidden': 'true' });
         if (a.cover) pics.push([frame, a]); else frame.appendChild(h('span', { class: 'ev-none' }, '사진 없음'));
         line.appendChild(h('li', { class: 'ev-item' + (a === albums[0] ? ' is-latest' : '') },
