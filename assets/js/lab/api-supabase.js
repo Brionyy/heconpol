@@ -328,7 +328,7 @@
           // 옮겨 온 글(옛 HTML 본문)은 편집기로 고치면 본문이 사라지므로 고치기는 막고 지우기만
           can_edit: mine && !p.body_html_legacy, can_delete: mine || admin, can_hide: admin && !draft },
         comments: (cs || []).map(function (c) {
-          return { id: c.id, body: c.body, avatar_id: c.avatar_id, author_name: nameOf(c.author_id), created_at: c.created_at, can_delete: c.author_id === m.id || admin };
+          return { id: c.id, body: c.body, avatar_id: c.avatar_id, author_name: nameOf(c.author_id), created_at: c.created_at, can_edit: c.author_id === m.id, can_delete: c.author_id === m.id || admin };
         }),
         attachments: (as || []).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };
@@ -429,6 +429,15 @@
       body = String(body || '').trim();
       if (!body || body.length > 2000) throw err('댓글은 2,000자 안으로 적어 주십시오.');
       await run(sb.from('comments').insert({ post_id: Number(postId), body: body }), '댓글을 달 수 없는 글입니다.');
+      return true;
+    },
+
+    updateComment: async function (id, previous, body) {
+      body = body.trim();
+      if (!body || body.length > 2000) throw err('댓글은 2,000자 안으로 적어 주십시오.');
+      await needMember();
+      var done = await rpc('edit_my_comment', { comment_id: Number(id), previous_body: previous, new_body: body });
+      if (!done) throw err('댓글이 바뀌었거나 수정할 수 없습니다. 새로고침해 확인해 주세요.');
       return true;
     },
 

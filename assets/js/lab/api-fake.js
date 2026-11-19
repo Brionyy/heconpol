@@ -481,7 +481,7 @@
           can_comment: !isDraft(p) && (settingsOf(p).allow_comments || u.role === 'admin'),
           can_edit: !p.old && p.author_id === u.id, can_delete: !p.old && (p.author_id === u.id || u.role === 'admin'), can_hide: !p.old && u.role === 'admin' && !isDraft(p) },
         comments: s.comments.filter(function (c) { return c.post_id === p.id && (!c.hidden || u.role === 'admin'); }).map(function (c) {
-          return { id: c.id, body: c.body, avatar_id: avatarIds.get(c.author_id), author_name: nameOf(s, c.author_id), created_at: c.created_at, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
+          return { id: c.id, body: c.body, avatar_id: avatarIds.get(c.author_id), author_name: nameOf(s, c.author_id), created_at: c.created_at, can_edit: !c.old && c.author_id === u.id, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
         }),
         attachments: s.attachments.filter(function (a) { return a.post_id === p.id; }).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };
@@ -583,6 +583,17 @@
       if (!settingsOf(p).allow_comments && u.role !== 'admin') throw err('댓글을 받지 않는 글입니다.');
       if (countToday(s.comments, u.id, 'author_id') >= LIMITS.comments) throw err('하루에 댓글은 100개까지 쓸 수 있습니다.');
       s.comments.push({ id: nextId(s, 'comments'), post_id: p.id, author_id: u.id, body: body, created_at: now(), hidden: false });
+      save(s);
+      return delay(true);
+    },
+
+    updateComment: async function (id, previous, body) {
+      body = body.trim();
+      if (!body || body.length > 2000) throw err('댓글은 2,000자 안으로 적어 주십시오.');
+      var s = load(), u = needMember(s);
+      var c = s.comments.find(function (row) { return row.id === Number(id); });
+      if (!c || c.author_id !== u.id || c.body !== previous) throw err('댓글이 바뀌었거나 수정할 수 없습니다. 새로고침해 확인해 주세요.');
+      c.body = body;
       save(s);
       return delay(true);
     },

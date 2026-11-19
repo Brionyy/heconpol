@@ -580,13 +580,53 @@
     var avatars = new Map((L.pageData().avatars || []).map(function (a) { return [a.id, a.src]; }));
     var list = h('div', {}, comments.length ? comments.map(function (c) {
       var picture = avatars.get(c.avatar_id);
+      var body = h('div', { class: 'comment-body' }, c.body);
+      var msg = h('div', { role: 'status' });
+      var edit = c.can_edit ? h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: beginEdit }, '수정') : null;
+      var remove = c.can_delete ? h('button', { type: 'button', class: 'btn btn-ghost btn-small comment-delete', onclick: async function () {
+        if (!confirm('댓글을 지우시겠습니까?')) return;
+        remove.disabled = true;
+        try { await api.deleteComment(c.id); location.reload(); }
+        catch (err) { msg.replaceChildren(L.notice(L.errText(err), 'error')); remove.disabled = false; }
+      } }, '지우기') : null;
+      function beginEdit() {
+        var input = h('textarea', { rows: 3, maxlength: 2000, required: true, 'aria-label': '댓글 수정' });
+        input.value = c.body;
+        var save = h('button', { type: 'submit', class: 'btn btn-small' }, '저장');
+        var cancel = h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: finishEdit }, '취소');
+        function finishEdit() {
+          body.textContent = c.body;
+          edit.disabled = false;
+          if (remove) remove.disabled = false;
+          msg.replaceChildren();
+          edit.focus();
+        }
+        var form = h('form', { class: 'form' }, input, h('div', { class: 'btns' }, save, cancel));
+        edit.disabled = true;
+        if (remove) remove.disabled = true;
+        msg.replaceChildren();
+        body.replaceChildren(form);
+        input.focus();
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          if (save.disabled) return;
+          var next = input.value.trim();
+          input.readOnly = cancel.disabled = save.disabled = true;
+          try {
+            await api.updateComment(c.id, c.body, next);
+            c.body = next;
+            finishEdit();
+            L.toast('댓글을 수정했습니다.', { kind: 'ok' });
+          } catch (err) {
+            msg.replaceChildren(L.notice(L.errText(err), 'error'));
+            input.readOnly = cancel.disabled = save.disabled = false;
+          }
+        });
+      }
       return h('div', { class: 'comment' }, h('span', { class: 'c-meta' },
         picture ? h('img', { class: 'comment-avatar', src: picture, alt: '', width: 32, height: 32 }) : null,
-        c.author_name + ' · ' + L.fmtDate(c.created_at),
-        c.can_delete ? h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: async function () {
-          if (!confirm('댓글을 지우시겠습니까?')) return;
-          await api.deleteComment(c.id); location.reload();
-        } }, '지우기') : null), c.body);
+        h('strong', { class: 'comment-author' }, c.author_name), h('span', {}, '· ' + L.fmtDate(c.created_at)),
+        edit || remove ? h('span', { class: 'comment-actions' }, edit, remove) : null), body, msg);
     }) : h('p', { class: 'empty' }, '댓글이 없습니다.'));
     var ta = h('textarea', { maxlength: 2000, rows: 3 });
     ta.style.minHeight = '90px';

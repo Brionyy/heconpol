@@ -2683,6 +2683,9 @@ html .btn[disabled],
   gap: 8px;
   margin-bottom: 6px;
 }
+.comment .c-meta { flex-wrap: wrap; }
+.comment-actions { display: inline-flex; flex: none; gap: 6px; margin-inline-start: auto; }
+.comment-author { color: var(--ink); font-size: 1rem; font-weight: 700; }
 .comment-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .comment .c-meta .btn {
   min-height: auto;
@@ -2697,7 +2700,9 @@ html .btn[disabled],
   box-shadow: none;
   cursor: pointer;
 }
-.comment .c-meta .btn:hover {
+.comment .c-meta .btn { min-height: 32px; font-size: .875rem; }
+.comment .c-meta .comment-delete { color: #a42219; background: #fff3f1; border-color: #e4b9b5; }
+.comment .c-meta .comment-delete:hover {
   color: #b42318;
   background: rgba(180, 35, 24, 0.08);
   border-color: rgba(180, 35, 24, 0.22);
