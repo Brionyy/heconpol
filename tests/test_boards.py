@@ -23,7 +23,7 @@ class BoardsTableTest(unittest.TestCase):
         by = {b["slug"]: b for b in build.read_boards()}
         self.assertEqual(by["seminar"]["name"], "세미나")  # 11-13 세미나 후기 + 옛 세미나 글 합침
         self.assertTrue(by["seminar"]["files"])
-        self.assertEqual(by["newcomer"]["name"], "신입생 자기소개")
+        self.assertEqual(by["newcomer"]["name"], "새식구 소개")
         self.assertIn("모임 · 행사 뒤 후기", by["free"]["desc"])
         self.assertTrue(any(b["gallery"] for b in by.values()), "사진첩 게시판이 하나는 있어야 사진첩 화면이 열린다")
 

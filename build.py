@@ -1027,11 +1027,11 @@ def build_pages(site):
         intro = md(read_text(a["글 파일"])) if a.get("글 파일") else f'<p>{esc(a.get("한 줄", ""))}</p>'
         blocks.append(group(a["이름"], a.get("영문", ""), f'<div class="grp-b">{intro}<div class="news-list">{rows}</div></div>',
                             ident=a.get("영문 주소") or "", note_lang="en"))
-    site.page("/research/", "연구 분야", f'<div class="wrap list">{"".join(blocks)}</div>',
+    site.page("/research/", "연구활동", f'<div class="wrap list">{"".join(blocks)}</div>',
               sub="건강보장 · 장기요양 · 국제개발")
     for p in posts:
         if p.get("글 파일"):
-            article_page(site, p, "research", "연구 분야", "/research/")
+            article_page(site, p, "research", "연구활동", "/research/")
 
     # ---- 수행연구(2회차: 연도는 왼쪽 칸. 최근 몇 해만 펼치고 그 전 해는 연도 줄만 보이며 누르면 펼쳐진다)
     projects = read_table("projects", ["연도", "과제"])
@@ -1079,11 +1079,11 @@ def build_pages(site):
         # 재학생 수는 쓰지 않는다(연구자, 10-27)
         sections.append(f'<section class="people-group" id="{esc(anchor_name(g))}"><h2>{esc(g)}</h2>'
                         f'<div class="people">{cards}</div></section>')
-    site.page("/people/", "구성원", f'<div class="wrap">{"".join(sections)}</div>',
+    site.page("/people/", "재학생", f'<div class="wrap">{"".join(sections)}</div>',
               index=[(anchor_name(g), g, "") for g in groups], art=art_network())
 
     # ---- 졸업생(2회차 덧붙임, 연구자 선택 B안 '학문 가계도'. 졸업생 수는 쓰지 않는다)
-    site.page("/alumni/", "졸업생", lineage(site, read_table("alumni", ["학위", "졸업 연도", "이름"])), art=art_paths())
+    site.page("/alumni/", "Alumni", lineage(site, read_table("alumni", ["학위", "졸업 연도", "이름"])), art=art_paths())
 
     # ---- 소식(2회차: 해마다 묶고 날짜는 '월.일'만)
     by_year = {}
@@ -1411,7 +1411,7 @@ def build_lab_pages(site):
                   band_photo=bp, band_search=(board_url(b), "제목 · 글쓴이로 찾기") if bp else None)
     # 옛 주소(2026-10-27 전 /lab/board/?b=… · /lab/photos/)는 새 게시판 화면으로 넘긴다.
     site.page("/lab/board/", "게시판", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/photos/", "행사 · 나들이 기록", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    site.page("/lab/photos/", "사진첩", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 내 정보(11-02): 내 구성원 카드의 지금 사진 · 관심 분야를 보이려고 카드 번호별 공개 값만 싣는다(공개 화면에 이미 보이는 것).
     # 미리 보기에서는 관리 화면처럼 표를 실어, 가짜 서버가 이 브라우저 안에서 승인한 결과를 보이게 한다
     me_data = {"boards": board_data, "cards": member_cards(rules)}
