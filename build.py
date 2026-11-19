@@ -965,21 +965,13 @@ def build_pages(site):
         f'<b>{esc(q["제목"])}</b>'
         f'<span class="quick-p">{esc(q.get("설명") or quick_fact(q["주소"]))}<span aria-hidden="true" class="arw-r"></span></span></a>'
         for q in quick)
-    # 연구 분야 세 칸: 소개 한 줄 아래에 그 분야 글 수와 연도(연구 분야 글 표에서 셈, 지어낸 수 없음)
-    posts_all = read_table("research_posts", ["분야", "날짜", "제목"])
-
-    def area_fact(a):
-        years = sorted(p["날짜"][:4] for p in posts_all if p["분야"] == a["이름"])
-        if not years:
-            return ""
-        span = years[0] if years[0] == years[-1] else f"{years[0]}~{years[-1]}"
+    area_cards = []
+    for a in areas:
         href = url("/research/") + (f'#{a["영문 주소"]}' if a.get("영문 주소") else "")
-        return f'<a class="area-more" href="{esc(href)}">글 {len(years)}편<span aria-hidden="true" class="arw-r"></span></a>'  # 연도는 뺌(옛 연도가 첫 화면에서 '멈춘 사이트'로 읽힘, 2026-11-16)
-
-    area_html = "".join(
-        f'<div class="area"><h3>{esc(a["이름"])}</h3>'
-        f'<small>{esc(a.get("영문", ""))}</small><p>{esc(a.get("한 줄", ""))}</p>{area_fact(a)}</div>'
-        for a in areas)
+        area_cards.append(
+            f'<div class="area"><h3><a href="{esc(href)}">{esc(a["이름"])}</a></h3>'
+            f'<small>{esc(a.get("영문", ""))}</small><p>{esc(a.get("한 줄", ""))}</p></div>')
+    area_html = "".join(area_cards)
     home_news = [n for n in news if not is_no(n.get("첫 화면에", ""))][:3]
     news_html = "".join(news_row(site, n) for n in home_news) or '<p class="empty">아직 소식이 없습니다.</p>'
     redirects = {r["옛 번호"]: r["새 주소"] for r in read_table("redirects", ["옛 번호", "새 주소"])}
