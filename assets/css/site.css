@@ -156,18 +156,18 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .count i { width: 120px; height: 1px; background: rgba(255, 255, 255, .35); position: relative; }
 .count-bar { position: absolute; left: 0; top: -.5px; height: 2px; width: 40px; background: var(--gold); transition: transform .6s ease; }
 
-/* 첫 화면 WHO 협력센터 장면: 사진 대신 3D 지구본(시안 D1b 판 b, 연구자 10-27). 글은 왼쪽, 큰 지구는 오른쪽 아래로 걸친다.
-   지구 몸체 · 대기 빛은 .disk, 점 지도는 cobe(.gl, 검은 몸체를 화면 섞기로 녹임), 옅은 위도 · 경도 점선은 .fx(동작 파일 globe.js) */
-.slide--globe { background: radial-gradient(1200px 820px at 68% 78%, rgba(34, 62, 118, .5), rgba(34, 62, 118, 0) 70%), var(--navy-deep); }
-.slide--globe::before { right: auto; width: 62%; height: 84%; background: linear-gradient(90deg, rgba(var(--shade), .9), rgba(var(--shade), .66) 55%, rgba(var(--shade), 0)); -webkit-mask: linear-gradient(#000 62%, transparent); mask: linear-gradient(#000 62%, transparent); }
+/* 첫 화면 WHO 협력센터 장면: 실시간 WebGL 지구본(2026-11-19 연구자 선택 A1: 백금 화이트실버 대륙 · 미드나잇 네이비 바다 · 서울 금색 포인트).
+   글은 왼쪽, 지구는 오른쪽에 놓이고, 위·왼쪽 남색 막(::before)이 지구 위·글 아래에 깔려 머리 메뉴와 본문 가독성을 지킨다. */
+.slide--globe { background: radial-gradient(920px 720px at 74% 58%, rgba(34, 56, 96, .44), rgba(11, 21, 40, 0) 72%), #0b1528; }
+.slide--globe::before { inset: 0; width: 100%; height: 100%; z-index: 1; background: linear-gradient(180deg, rgba(11, 21, 40, .78) 0%, rgba(11, 21, 40, .24) 11%, rgba(11, 21, 40, 0) 20%), linear-gradient(90deg, #0b1528 0%, rgba(11, 21, 40, .92) 38%, rgba(11, 21, 40, .38) 54%, rgba(11, 21, 40, 0) 68%); -webkit-mask: none; mask: none; pointer-events: none; }
 /* 글은 왼쪽 정렬. 양옆 넘김 단추(왼쪽 40~94px)와 겹치지 않게 적어도 128px 띄운다(단추가 없는 휴대폰 폭은 여백만) */
 .slide--globe .hero-center { text-align: left; margin-top: 200px; padding: 0 var(--gutter) 0 max(128px, calc((100% - var(--page-max)) / 2 + var(--gutter))); }
 .slide--globe .hero-center > * { max-width: 600px; }
 .slide--globe .rule { margin: 0 0 22px; }
-.slide-globe { position: absolute; inset: 0; }
-.slide-globe .disk { position: absolute; width: min(1000px, 70vw); aspect-ratio: 1; right: -60px; top: 150px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #1c2f52 0%, #14233f 46%, #0e192e 100%); }
-.slide-globe .disk::after { content: ""; position: absolute; inset: -14%; border-radius: 50%; background: radial-gradient(closest-side, rgba(150, 185, 235, 0) 68%, rgba(150, 185, 235, .06) 76%, rgba(196, 216, 246, .27) 78.1%, rgba(140, 176, 232, .11) 79.8%, rgba(120, 160, 225, .035) 84%, rgba(120, 160, 225, 0) 92%); }
-.slide-globe .gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; mix-blend-mode: screen; }
+.slide-globe { position: absolute; inset: 0; z-index: 0; isolation: isolate; }
+.slide-globe .disk { position: absolute; width: min(800px, 56vw); aspect-ratio: 1; right: -24px; top: 68px; border-radius: 50%; background: transparent; }
+.slide-globe .disk::after { display: none; }
+.slide-globe .gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; mix-blend-mode: normal; }
 .slide-globe .fx { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
 
 /* 바로가기 세 개: 금색 윗선은 여기에만 */
@@ -594,6 +594,7 @@ summary:hover .chev, summary:hover .cnt { color: var(--ink); }
   .grp-h .cnt { margin: 0; }
   .grp-fold summary { grid-template-columns: auto minmax(0, 1fr) 24px; column-gap: var(--sp-3); }
   .grp-fold details > .rows { margin-left: 0; }
+  .slide-globe .disk { width: 560px; right: -100px; top: 132px; }
 }
 @media (max-width: 640px) {
   :root { --gutter: 20px; --fs-h1: 34px; --fs-h2: 25px; --fs-h3: 20px; --fs-lead: 19px; --band-top: var(--sp-8); --band-bottom: var(--sp-7); --top: var(--sp-7); }
@@ -653,9 +654,9 @@ summary:hover .chev, summary:hover .cnt { color: var(--ink); }
   .ed-area.is-empty::before { left: calc(var(--sp-4) - 1px); right: calc(var(--sp-4) - 1px); top: var(--sp-5); }
   .aff { gap: var(--sp-4) var(--sp-5); }
   .aff img { height: 30px; }
-  .slide--globe .hero-center { padding-left: var(--gutter); margin-top: 140px; }
-  .slide--globe::before { width: 100%; height: 100%; background: linear-gradient(100deg, rgba(var(--shade), .82), rgba(var(--shade), .5) 60%, rgba(var(--shade), .25)); -webkit-mask: none; mask: none; }
-  .slide-globe .disk { width: 520px; right: -230px; top: 150px; }
+  .slide--globe .hero-center { padding-left: var(--gutter); margin-top: 118px; }
+  .slide--globe::before { width: 100%; height: 100%; background: linear-gradient(162deg, #0b1528 0%, rgba(11, 21, 40, .94) 44%, rgba(11, 21, 40, .52) 66%, rgba(11, 21, 40, .12) 100%); -webkit-mask: none; mask: none; }
+  .slide-globe .disk { width: 370px; right: -108px; top: 244px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .slide, .count-bar { transition: none; }
