@@ -1180,7 +1180,7 @@
       p.role === 'admin' ? h('p', { class: 'notice m-info' }, '관리 화면은 인증 앱(2단계 인증)을 등록한 뒤에 열립니다.') : null,
       h('div', { class: 'me-grid m-stagger' },
         // 11-13: 휴대폰에서 이름 · 비밀번호 판을 지나야 나오던 것을 계정 요약 바로 아래로
-        cardBox ? mePanel('구성원 소개 사진 · 관심 분야', null,
+        cardBox ? mePanel('재학생 사진 · 관심 분야 수정 요청', '재학생 페이지에 올라가는 본인의 사진과 연구 관심 분야를 바꿔 달라고 조교에게 요청하는 곳입니다.',
           cardBox, 'is-wide', h('span', { class: 'm-pill is-gold' }, '조교 승인 뒤 공개')) : null,
         mePanel('이름', null, nform),
         mePanel('비밀번호', null, pform),

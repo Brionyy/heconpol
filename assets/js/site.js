@@ -89,10 +89,35 @@
     start();
   }
 
+  function setupAuthNav() {
+    var loggedIn = false;
+    try {
+      if (localStorage.getItem('labFake.session')) loggedIn = true;
+      for (var i = 0; !loggedIn && i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && /^sb-.*-auth-token$/.test(k)) {
+          var raw = localStorage.getItem(k);
+          if (raw && raw.indexOf('access_token') !== -1) loggedIn = true;
+        }
+      }
+    } catch (e) {}
+    if (!loggedIn) return;
+    document.querySelectorAll('.nav-list > li > a').forEach(function (a) {
+      var href = a.getAttribute('href') || '';
+      if (/\/login\/join\/?$/.test(href)) {
+        a.parentElement.hidden = true;
+      } else if (/\/login\/?$/.test(href)) {
+        a.textContent = '내 정보';
+        a.setAttribute('href', href.replace(/\/login\/?$/, '/lab/me/'));
+      }
+    });
+  }
+
   var data = pageData();
   if (redirectOld(data)) return;
   document.addEventListener('DOMContentLoaded', function () {
     setupMenu();
+    setupAuthNav();
     setupSlides();
   });
 })();

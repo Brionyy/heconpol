@@ -1401,7 +1401,7 @@ def build_lab_pages(site):
     # 비밀번호 찾기 · 재설정(11-02 시안 1): 옛 회원 처음 한 번 · 잊었을 때 모두 여기. 예전 주소 /login/join/?step=old 는 여기로 넘김
     site.page("/login/find/", "비밀번호 찾기 · 재설정", lab_shell("find"), scripts=js(LAB_SCRIPTS_BASE), **common)
     site.page("/login/reset/", "비밀번호 새로 정하기", lab_shell("reset"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/", "회원 칸", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), **common)
+    site.page("/lab/", "내 정보", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 게시판마다 따로 화면(구성원 · 졸업생처럼 머리 메뉴에서 열림). 글 목록 · 보기 · 쓰기 · 고치기를 한 화면이 맡는다.
     for b in board_data:
         bp = BOARD_BAND_PHOTO.get(b["slug"])
