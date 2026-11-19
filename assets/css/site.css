@@ -176,6 +176,7 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .quick-card { background: var(--paper); padding: var(--sp-6); border-top: 2px solid var(--gold); }
 .quick-card b { display: block; font-family: var(--display); font-size: var(--fs-h3); line-height: var(--lh-tight); letter-spacing: var(--display-track); margin: 0 0 var(--sp-2); font-weight: var(--display-weight); }
 .quick-p { color: var(--sub); font-size: var(--fs-meta); display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
+.quick-p { white-space: pre-line; }
 .quick-card:hover b { color: var(--gold-deep); }
 
 /* 연구 분야 세 칸 */

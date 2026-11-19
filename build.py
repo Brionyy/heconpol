@@ -897,12 +897,12 @@ def build_pages(site):
     areas = read_table("areas", ["이름"])
 
     def quick_fact(path):
-        """바로가기 카드의 '설명' 칸이 비었을 때 쓰는 실제 사실 한 줄(표에서 셈)."""
+        """설명이 빈 바로가기에는 연결된 화면의 표에서 내용을 가져온다."""
         if path == "/courses/":
-            return f"교과목 {len(read_table('courses', ['과목 이름']))}개"
+            return "\n".join(course["과목 이름"] for course in read_table("courses", ["과목 이름"]))
         if path == "/alumni/":
             al = read_table("alumni", ["졸업 연도", "이름"])
-            return f"박사 {len(al)}명 · {min(a['졸업 연도'][:4] for a in al)}년부터" if al else ""  # 제목 낱말을 되풀이하지 않음(2026-11-16 2단계)
+            return f"박사 {len(al)}명" if al else ""
         row = next((r for r in read_table("pages", ["주소", "제목", "글 파일"]) if r["주소"] == path), None)
         if row:
             return " · ".join(x for x in (row.get("큰 제목") or row["제목"], row.get("작은 제목")) if x)
@@ -958,12 +958,11 @@ def build_pages(site):
     hero = f'<section class="hero" aria-label="연구실 사진" data-count="{len(slides)}">{"".join(slide_html)}{controls}</section>'
 
     # 바로가기 세 개(2026-11-14 AI 티 빼기, 연구자 '추천대로'): 사진 슬라이드와 겹치지 않는 사이트 안 화면(교수 · 교과목 · 졸업생).
-    # '설명' 칸을 비우면 그 화면의 표에서 센 실제 사실을 쓴다(사람 수 · 과목 수가 바뀌면 저절로 따라감)
     quick_html = "".join(
         f'<a class="quick-card" href="{esc(url(q["주소"]))}"'
         f'{" rel=\"noopener noreferrer\"" if q["주소"].startswith("http") else ""}>'
         f'<b>{esc(q["제목"])}</b>'
-        f'<span class="quick-p">{esc(q.get("설명") or quick_fact(q["주소"]))}<span aria-hidden="true" class="arw-r"></span></span></a>'
+        f'<span class="quick-p">{text_lang(q.get("설명") or quick_fact(q["주소"]))}<span aria-hidden="true" class="arw-r"></span></span></a>'
         for q in quick)
     area_cards = []
     for a in areas:
