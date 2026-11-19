@@ -2628,6 +2628,30 @@ html .btn[disabled],
   padding: var(--sp-4) 0;
   border-bottom: 1px solid var(--line);
 }
+.comment .c-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.comment .c-meta .btn {
+  min-height: auto;
+  padding: 2px 7px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sub);
+  box-shadow: none;
+  cursor: pointer;
+}
+.comment .c-meta .btn:hover {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
+  border-color: rgba(180, 35, 24, 0.22);
+}
 .comments form.form {
   margin-top: var(--sp-5);
   padding: var(--sp-5);
