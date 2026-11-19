@@ -235,12 +235,15 @@
     var msg = h('div', { 'aria-live': 'polite' });
     var courses = (L.pageData().person_courses || ['박사과정', '석사과정']);
     var thisYear = new Date().getFullYear();
+    var yearOpts = [];
+    for (var yr = thisYear + 1; yr >= thisYear - 19; yr--) yearOpts.push(String(yr));
     var f = {
       display_name: h('input', { type: 'text', autocomplete: 'name', required: true, maxlength: 30 }),
       email: h('input', { type: 'email', autocomplete: 'email', required: true, maxlength: 120 }),
       kind: h('select', {}, ['재학', '졸업'].map(function (k) { return h('option', { value: k }, k); })),   // 11-02 연구자: "교수님을 왜 넣어 재학과 졸업만"
       course: h('select', {}, courses.map(function (c) { return h('option', { value: c }, c); })),
-      entry_year: h('input', { type: 'text', inputmode: 'numeric', maxlength: 4, value: String(thisYear), placeholder: '예: ' + thisYear }),
+      entry_year: h('select', {}, yearOpts.map(function (y) { return h('option', { value: y, selected: y === String(thisYear) }, y + '년'); })),
+      entry_term: h('select', {}, ['1학기', '2학기'].map(function (t) { return h('option', { value: t, selected: t === (new Date().getMonth() >= 8 ? '2학기' : '1학기') }, t); })),
       show_email: h('input', { type: 'checkbox' }),
       password: h('input', { type: 'password', autocomplete: 'new-password', required: true, maxlength: 200 }),
       old_username: h('input', { type: 'text', autocomplete: 'off', maxlength: 40, placeholder: '예: hong2012' })
@@ -249,9 +252,10 @@
     var oldBox = old ? h('div', { class: 'g-oldid' },
       h('label', {}, h('span', {}, '기존 홈페이지 아이디', h('em', { class: 'g-opt' }, '선택')),
         h('span', { class: 'hint' }, '승인 시 기존 계정과 연결하는 데 사용합니다.'), f.old_username)) : null;
-    // 재학생만: 과정 · 입학 연도 · 구성원 화면 메일 공개(처음엔 꺼짐, 10-28 연구자 선택). 승인 때 구성원 카드 초안에 쓴다
+    // 재학생만: 과정 · 입학 연도 · 입학 학기 · 구성원 화면 메일 공개(처음엔 꺼짐, 10-28 연구자 선택). 승인 때 구성원 카드 초안에 쓴다
     var student = h('fieldset', { class: 'join-student' }, h('legend', {}, '재학생이면'),
-      field('과정', f.course), field('입학 연도', f.entry_year),
+      field('과정', f.course),
+      h('div', { class: 'm-row2' }, field('입학 연도', f.entry_year), field('입학 학기', f.entry_term)),
       consentRow(f.show_email));
     function sync() { student.hidden = f.kind.value !== '재학'; }
     f.kind.addEventListener('change', sync);
@@ -274,7 +278,7 @@
       busy(btn, true);
       try {
         await api.signUp({ username: '', email_as_id: true, display_name: f.display_name.value, email: f.email.value.trim(),
-          kind: f.kind.value, intro: '', password: f.password.value,
+          kind: f.kind.value, intro: isStudent ? (f.entry_year.value + '년 ' + f.entry_term.value + ' 입학') : '', password: f.password.value,
           course: isStudent ? f.course.value : '', entry_year: isStudent ? f.entry_year.value.trim() : '', show_email: isStudent && f.show_email.checked,
           old_username: old ? f.old_username.value.trim() : '' });
         L.clear();
@@ -1182,8 +1186,7 @@
         // 11-13: 휴대폰에서 이름 · 비밀번호 판을 지나야 나오던 것을 계정 요약 바로 아래로
         cardBox ? mePanel('재학생 사진 · 관심 분야 수정 요청', '재학생 페이지에 올라가는 본인의 사진과 연구 관심 분야를 바꿔 달라고 조교에게 요청하는 곳입니다.',
           cardBox, 'is-wide', h('span', { class: 'm-pill is-gold' }, '조교 승인 뒤 공개')) : null,
-        mePanel('이름', null, nform),
-        mePanel('비밀번호', null, pform),
+        mePanel('비밀번호', null, pform, 'is-wide'),
         mePanel('CV', null, cform, 'is-wide'),
         mePanel('탈퇴', null, [wbtn], 'is-wide is-quiet'))]);
     L.setStatus('');
