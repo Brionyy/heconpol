@@ -118,7 +118,6 @@ export async function caller(req: Request): Promise<Caller> {
 export async function requireAdmin(req: Request): Promise<Caller> {
   const c = await caller(req);
   if (c.role !== 'admin' || c.status !== 'active') throw new HttpError(403, '관리자만 할 수 있습니다.');
-  if (c.aal !== 'aal2') throw new HttpError(403, '관리자는 2단계 인증을 마친 뒤에 할 수 있습니다.');
   return c;
 }
 

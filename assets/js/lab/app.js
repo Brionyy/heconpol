@@ -1176,7 +1176,6 @@
         desc ? h('p', { class: 'muted' }, desc) : null, body));
     }
     L.append(root, [
-      p.role === 'admin' ? h('p', { class: 'notice m-info' }, '관리 화면은 인증 앱(2단계 인증)을 등록한 뒤에 열립니다.') : null,
       h('div', { class: 'me-grid m-stagger' },
         // 11-13: 휴대폰에서 이름 · 비밀번호 판을 지나야 나오던 것을 계정 요약 바로 아래로
         cardBox ? mePanel('재학생 사진 · 관심 분야 수정 요청', '재학생 페이지에 올라가는 본인의 사진과 연구 관심 분야를 바꿔 달라고 조교에게 요청하는 곳입니다.',

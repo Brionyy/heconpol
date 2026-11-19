@@ -193,11 +193,10 @@
     if (!u || !(u.role === 'member' || u.role === 'admin') || u.status !== 'active') throw err('회원만 할 수 있습니다.');
     return u;
   }
-  // 진짜 서버의 assert_admin 과 같다: 관리자이고 이번 로그인에서 2단계 인증(인증 앱)을 마쳤는가. 가짜에서는 '인증 앱 등록(시험)'을 누르면 마친 것으로 친다
+  // 관리자 권한 확인 (2단계 인증 없이 바로 허용)
   function needAdmin(s) {
     var u = needMember(s);
     if (u.role !== 'admin') throw err('관리자만 할 수 있습니다.');
-    if (!u.mfa) throw err('관리자는 2단계 인증을 마친 뒤에 할 수 있습니다.');
     return u;
   }
   function errCode(msg, code) { var e = err(msg); e.code = code; return e; }

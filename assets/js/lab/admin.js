@@ -121,7 +121,6 @@
     var root = L.root();
     L.append(root, L.topBar(api, s, 'admin'));
     var me = await api.adminSelf();
-    if (!me.mfa) { drawMfa(api, root, me); L.setStatus(''); L.toastPending(api); return; }
     var msg = h('div', { class: 'admin-msg', 'aria-live': 'polite' });
     // 넘겨받은 사람이 2단계 인증으로 들어오면 넘기기를 끝낸다(넘긴 사람은 회원이 됨)
     if (me.incoming && me.incoming.length) {

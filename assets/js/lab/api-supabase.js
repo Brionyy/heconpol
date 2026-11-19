@@ -658,20 +658,14 @@
       });
     },
 
-    // 나(관리자)의 2단계 인증 · 넘기기 상태. factor_id 는 이미 등록한 인증 앱(있으면 6자리만 넣음)
+    // 나(관리자)의 넘기기 상태 (2단계 인증 없이 관리자 계정으로 바로 열람)
     adminSelf: async function () {
       var m = await needAdminRole();
-      var aal = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-      var mfa = !aal.error && aal.data && aal.data.currentLevel === 'aal2';
-      var f = await sb.auth.mfa.listFactors();
-      var totp = (!f.error && f.data && f.data.totp || []).filter(function (x) { return x.status === 'verified'; })[0];
-      var out = { mfa: mfa, factor_id: totp ? totp.id : null, leaving_to: null, incoming: [] };
-      if (mfa) {
-        var people = await rpc('admin_list_profiles');
-        var mine = (people || []).filter(function (u) { return u.id === m.id; })[0];
-        out.leaving_to = mine ? mine.leaving_to || null : null;
-        out.incoming = (people || []).filter(function (u) { return u.leaving_to === m.id; }).map(function (u) { return u.display_name; });
-      }
+      var out = { mfa: true, factor_id: null, leaving_to: null, incoming: [] };
+      var people = await rpc('admin_list_profiles');
+      var mine = (people || []).filter(function (u) { return u.id === m.id; })[0];
+      out.leaving_to = mine ? mine.leaving_to || null : null;
+      out.incoming = (people || []).filter(function (u) { return u.leaving_to === m.id; }).map(function (u) { return u.display_name; });
       return out;
     },
     // 인증 앱 등록 시작: 확인 안 된 옛 등록은 지우고 새로. QR(그림 주소)과 손으로 넣을 열쇠 글을 돌려준다
