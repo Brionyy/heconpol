@@ -648,7 +648,15 @@
       var s = load(); var u = me(s);
       if (!u) throw err('로그인이 필요합니다.');
       return delay({ username: u.username, display_name: u.display_name, email: u.email, kind: u.kind, role: u.role, created_at: u.created_at,
-        withdraw_requested: s.withdraw.indexOf(u.id) !== -1, cv_url: u.cv_url || '', person_no: u.person_no || null, cv_public: u.cv_public !== false });
+        withdraw_requested: s.withdraw.indexOf(u.id) !== -1, cv_url: u.cv_url || '', person_no: u.person_no || null,
+        cv_public: u.cv_public !== false, avatar_id: u.avatar_id });
+    },
+
+    updateMyAvatar: async function (id) {
+      var s = load(); var u = needMember(s);
+      u.avatar_id = id || null;
+      save(s);
+      return delay(true);
     },
 
     updateDisplayName: async function (name) {

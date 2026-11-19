@@ -1111,6 +1111,94 @@
   }
 
   // ---------------------------------------------------------------- 내 정보
+  function avatarPicker(api, profile, face, card) {
+    var avatars = L.pageData().avatars || [];
+    var current = avatars.some(function (a) { return a.id === profile.avatar_id; }) ? profile.avatar_id : '';
+    var defaultProfile = { id: '', name: card && card.photo_url ? '기본 구성원 사진' : '기본 프로필', src: card && card.photo_url };
+    var byId = new Map(avatars.map(function (a) { return [a.id, a]; }));
+    byId.set('', defaultProfile);
+
+    function picture(a, lazy) {
+      return a.src ? h('img', { src: a.src, alt: '', width: 112, height: 112, decoding: 'async', loading: lazy ? 'lazy' : 'eager' }) : document.createDocumentFragment();
+    }
+
+    function drawFace() {
+      var selected = byId.get(current);
+      face.replaceChildren(picture(selected));
+      L.setRailPhoto(selected.src);
+    }
+    drawFace();
+    if (!avatars.length) return face;
+
+    function option(a) {
+      return h('label', { class: 'avatar-option' + (a.id ? '' : ' avatar-default') },
+        h('input', { type: 'radio', name: 'avatar', value: a.id, 'aria-label': a.name, class: 'sr-only' }),
+        h('span', { class: 'avatar-sample', 'aria-hidden': 'true' }, picture(a, a.id && avatars.length > 24)),
+        a.id ? null : h('span', {}, a.name));
+    }
+    var groups = new Map();
+    avatars.forEach(function (a) {
+      if (!groups.has(a.group)) groups.set(a.group, []);
+      groups.get(a.group).push(a);
+    });
+    var gallery = h('div', { class: 'avatar-gallery', role: 'region', 'aria-label': '프로필 그림 목록', tabindex: '0' });
+    groups.forEach(function (items, group) {
+      gallery.appendChild(h('div', { class: 'avatar-row', role: 'group', 'aria-label': group }, items.map(option)));
+    });
+    var options = h('div', { class: 'avatar-options', role: 'group', 'aria-label': '프로필 사진' },
+      option(defaultProfile), gallery);
+    var button = h('button', { type: 'submit', class: 'btn', disabled: true }, '저장');
+    var cancel = h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { dialog.close(); } }, '취소');
+    var msg = h('div', { role: 'status' });
+    var preview = h('span', { class: 'avatar-sample avatar-preview', role: 'img', 'aria-label': '고른 프로필' });
+    var form = h('form', { class: 'form' }, options, msg, h('div', { class: 'btns' }, preview, cancel, button));
+    var dialog = h('dialog', { class: 'avatar-picker', 'aria-labelledby': 'avatar-title' },
+      h('h3', { id: 'avatar-title' }, '프로필 선택'), form);
+    var trigger = h('button', { type: 'button', class: 'avatar-trigger', 'aria-label': '프로필 선택', 'aria-haspopup': 'dialog' },
+      face, h('span', { class: 'avatar-edit', 'aria-hidden': 'true' }, '✎'));
+    trigger.addEventListener('click', function () {
+      form.elements.avatar.value = current;
+      button.disabled = true;
+      msg.replaceChildren();
+      preview.replaceChildren(picture(byId.get(current)));
+      dialog.showModal();
+      var tile = options.querySelector('input:checked').parentNode;
+      var row = tile.closest('.avatar-row');
+      gallery.scrollTop = row ? row.offsetTop + tile.offsetTop - (gallery.clientHeight - tile.offsetHeight) / 2 : 0;
+    });
+    dialog.addEventListener('cancel', function (event) {
+      if (options.inert) event.preventDefault();
+    });
+    options.addEventListener('change', function () {
+      button.disabled = form.elements.avatar.value === current;
+      preview.replaceChildren(picture(byId.get(form.elements.avatar.value)));
+      msg.replaceChildren();
+    });
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var chosen = form.elements.avatar.value;
+      if (options.inert || chosen === current) return;
+      options.inert = true;
+      button.disabled = true;
+      cancel.disabled = true;
+      msg.replaceChildren();
+      try {
+        await api.updateMyAvatar(chosen);
+        current = chosen;
+        drawFace();
+        dialog.close();
+        L.toast('프로필을 저장했습니다.', { kind: 'ok' });
+      } catch (err) {
+        msg.replaceChildren(L.notice(L.errText(err), 'error'));
+      } finally {
+        options.inert = false;
+        button.disabled = chosen === current;
+        cancel.disabled = false;
+      }
+    });
+    return h('div', { class: 'avatar-control' }, trigger, dialog);
+  }
+
   async function meInfo(api) {
     var s = await L.guard(api, 'member');
     if (!s) return;
@@ -1121,9 +1209,14 @@
     // 고친 뒤 성공 글은 화면 아래 알림, 틀린 입력은 그 판 안 글. 탈퇴 요청은 브라우저 기본 확인 창 대신 확인 창
     root.appendChild(h('div', { class: 'work-head' }, h('h2', { class: 'work-title' }, '내 정보')));
     var cardName = h('p', { class: 'me-name' }, p.display_name);
+    var accountFace = h('span', { class: 'm-card-face', 'aria-hidden': 'true' });
+    var memberCard = null, cardError = null;
+    try { memberCard = await L.displayCard(api, p); }
+    catch (err) { cardError = err; }
+    var avatarControl = avatarPicker(api, p, accountFace, memberCard);
     root.appendChild(h('section', { class: 'me-card m-card', 'aria-label': '계정' },
       h('div', { class: 'm-card-top' },
-        h('span', { class: 'm-card-face', 'aria-hidden': 'true' }, (p.display_name || '?').slice(0, 1)),
+        avatarControl,
         h('div', { class: 'm-card-id' }, cardName,
           h('p', { class: 'm-card-pills' }, h('span', { class: 'm-pill is-ok' }, p.kind),
             p.role === 'admin' ? h('span', { class: 'm-pill is-gold' }, '관리자') : null,
@@ -1189,7 +1282,8 @@
 
     // 교수님 카드(교수 화면)는 조교가 고친다
     var cardBox = p.kind === '교수' ? null : h('div', { class: 'me-cardreq' });
-    if (cardBox) await drawCardRequests(api, p, cardBox);
+    if (cardBox && cardError) cardBox.appendChild(L.notice(L.errText(cardError), 'error'));
+    else if (cardBox) await drawCardRequests(api, p, cardBox, memberCard);
 
     function mePanel(title, desc, body, cls, tag) {
       return glow(h('section', { class: 'me-panel m-panel' + (cls ? ' ' + cls : '') }, h('div', { class: 'm-panel-top' }, h('h3', {}, title), tag || null),
@@ -1210,13 +1304,13 @@
   // 11-13 개선(확인판 1번, 연구자가 고른 6가지): 사진 · 키워드를 단추 하나로 함께 보냄, '지금 구성원 화면 → 요청한 모습'을 나란히,
   // 결과는 회원 칸 첫 화면 알림 줄 · '내 정보' 옆 금색 점(resultNews), 판은 계정 요약 바로 아래, 사진은 끌어다 놓는 넓은 칸, '까닭' → '이유'.
   // 서버 규칙(요청 표)은 그대로: 사진 · 키워드는 요청 두 건으로 저장되고 화면만 묶는다.
-  async function drawCardRequests(api, p, box) {
-    var card = null, reqs = [];
-    try { card = p.person_no ? await api.myCard() : null; reqs = await api.myProfileRequests(); }
+  async function drawCardRequests(api, p, box, card) {
+    var reqs = [];
+    try { reqs = await api.myProfileRequests(); }
     catch (err) { box.replaceChildren(L.notice(L.errText(err), 'error')); return; }
     var byKind = {};
     reqs.forEach(function (r) { byKind[r.kind] = r; });
-    var redraw = function () { return drawCardRequests(api, p, box); };
+    var redraw = function () { return drawCardRequests(api, p, box, card); };
     var withInterest = !card || card.table === 'people';   // 졸업생 소개에는 관심 분야가 없다
     var rp = byKind.photo, ri = withInterest ? byKind.interest : null;
     var pendP = rp && rp.status === 'pending', pendI = ri && ri.status === 'pending';
@@ -1226,7 +1320,7 @@
     // 지금 카드 → 요청한 카드(구성원 화면과 같은 모양)
     function face(src, alt) {
       return src ? h('img', { class: 'ph', src: src, alt: alt, width: 120, height: 150 })
-        : h('span', { class: 'ph ph-none', 'aria-hidden': 'true' }, (p.display_name || '?').slice(0, 1));
+        : h('span', { class: 'ph reqcard-empty', role: 'img', 'aria-label': '사진 없음' });
     }
     function mini(label, pic, kws, changed) {
       return h('figure', { class: 'reqcard' + (changed && (changed.pic || changed.kw) ? ' is-changed' : '') },
@@ -1236,9 +1330,10 @@
         withInterest ? h('div', { class: 'reqcard-kw' + (changed && changed.kw ? ' is-diff' : '') },
           kws.length ? L.keywordList(kws.join(L.kw.sep)) : h('span', { class: 'muted' }, '관심 분야 없음')) : null);
     }
-    var nowCard = mini(card ? '지금 ' + card.label + ' 화면' : '지금 모습', face(card && card.photo_url, '지금 공개된 내 사진'), cur);
+    var nowCard = mini('지금 모습', face(card && card.photo_url, '지금 공개된 내 사진'), cur);
     var wantSlot = h('div', { class: 'reqcard-slot' });
     var blob = null, blobUrl = null, pendUrl = null;
+    var uploadVersion = 0, preparing = false, sending = false;
     if (pendP && rp.has_photo) { try { pendUrl = await api.requestPhotoUrl(rp.id); } catch (e) { pendUrl = null; } }
     var kwNow = startKw.slice();
     function sameKw(a, b) { return a.join(L.kw.sep) === b.join(L.kw.sep); }
@@ -1251,19 +1346,35 @@
     // 사진: 끌어다 놓거나 눌러서 고르는 넓은 칸 하나(휴대폰에서 '선택된 파일 없음'이 잘리던 것)
     var pin = h('input', { type: 'file', class: 'sr-only', id: 'cardreq-file', accept: window.LabUpload ? window.LabUpload.accept.photo : 'image/*' });
     var dropTxt = h('span', { class: 'drop-t' }, pendP ? '다른 사진으로 바꾸려면 여기에 끌어다 놓거나 눌러서 고르기' : '사진을 여기에 끌어다 놓거나 눌러서 고르기');
-    var drop = h('label', { class: 'drop', for: 'cardreq-file' }, dropTxt, h('span', { class: 'drop-s' }, 'JPG · PNG · WebP, 세로 4:5로 잘립니다'));
+    var drop = h('label', { class: 'drop', for: 'cardreq-file' }, dropTxt, h('span', { class: 'drop-s' }, 'JPG · PNG · WebP. 세로 4:5로 자동 조정한 사진이 요청한 모습에 표시됩니다.'));
     var msg = h('div');
     async function takeFile(f) {
+      if (!f || sending) return;
+      var version = ++uploadVersion;
+      preparing = true;
+      sync();
       msg.replaceChildren();
-      if (!f) return;
       try {
-        blob = await window.LabUpload.portrait(f);
+        var next = await window.LabUpload.portrait(f);
+        if (version !== uploadVersion) return;
+        var nextUrl = URL.createObjectURL(next);
         if (blobUrl) URL.revokeObjectURL(blobUrl);
-        blobUrl = URL.createObjectURL(blob);
+        blob = next;
+        blobUrl = nextUrl;
         dropTxt.textContent = '고른 사진: ' + (f.name || '사진') + ' · 바꾸려면 다시 끌어다 놓기';
         drop.classList.add('is-set');
-        drawWant(); sync();
-      } catch (err) { pin.value = ''; msg.replaceChildren(L.notice(L.errText(err), 'error')); }
+        drawWant();
+      } catch (err) {
+        if (version === uploadVersion) {
+          pin.value = '';
+          msg.replaceChildren(L.notice(L.errText(err), 'error'));
+        }
+      } finally {
+        if (version === uploadVersion) {
+          preparing = false;
+          sync();
+        }
+      }
     }
     pin.addEventListener('change', function () { takeFile(pin.files[0]); });
     ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
@@ -1279,7 +1390,7 @@
       if (pendI) return !sameKw(v, L.keywords(ri.interest || ''));
       return !sameKw(v, cur);
     }
-    function sync() { if (sbtn) sbtn.disabled = !(blob || kwChanged()); }   // 키워드 칸이 처음 그려질 때는 단추가 아직 없음
+    function sync() { if (sbtn) sbtn.disabled = preparing || sending || !(blob || kwChanged()); }
 
     var form = h('form', { class: 'form cardreq-one', novalidate: true },
       resultLines(),
@@ -1292,21 +1403,26 @@
       h('div', { class: 'btns' }, sbtn, sNote), msg);
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      if (preparing || sending) return;
       var v = null;
       if (kwChanged()) {
         try { var list = kw.get(), bad = L.checkKeywords(list); if (bad) throw L.userError(bad); v = list.join(L.kw.sep); }
         catch (er) { msg.replaceChildren(L.notice(L.errText(er), 'error')); return; }
       }
       if (!blob && v === null) return;
+      sending = true;
       msg.replaceChildren(); busy(sbtn, true);
       var sent = [];
       try {
         if (blob) { await api.requestProfileChange('photo', blob); sent.push('사진'); }
         if (v !== null) { await api.requestProfileChange('interest', v); sent.push('키워드'); }
         L.toast(sent.join(' · ') + '을(를) 보냈습니다. 조교가 승인하면 구성원 화면에 올라갑니다.', { kind: 'ok' });
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
         await redraw();
       } catch (err) {
+        sending = false;
         busy(sbtn, false);
+        sync();
         msg.replaceChildren(L.notice((sent.length ? sent.join(' · ') + '은(는) 보냈지만 나머지는 ' : '') + L.errText(err), 'error'));
         if (sent.length) await redraw();
       }

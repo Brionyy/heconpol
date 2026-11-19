@@ -494,10 +494,19 @@
     },
 
     myProfile: async function () {
-      var p = (await rpc('my_profile'))[0];
+      var results = await Promise.all([rpc('my_profile'), run(sb.auth.getSession())]);
+      var p = results[0][0], session = results[1].session;
       if (!p) throw err('로그인이 필요합니다.');
+      var metadata = session && session.user.user_metadata;
       return { username: p.username, display_name: p.display_name, email: p.email || '', kind: p.kind, role: p.role, created_at: p.created_at,
-        withdraw_requested: !!p.withdraw_requested_at, cv_url: p.cv_url || '', person_no: p.person_no || null, cv_public: p.cv_public !== false };
+        withdraw_requested: !!p.withdraw_requested_at, cv_url: p.cv_url || '', person_no: p.person_no || null,
+        cv_public: p.cv_public !== false, avatar_id: metadata && metadata.lab_avatar_id };
+    },
+
+    // 캐릭터는 본인 계정 화면의 표시용 설정이다.
+    updateMyAvatar: async function (id) {
+      await needMember();
+      await run(sb.auth.updateUser({ data: { lab_avatar_id: id || null } }), '프로필을 저장하지 못했습니다.');
     },
 
     updateDisplayName: async function (name) {

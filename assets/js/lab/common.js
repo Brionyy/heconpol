@@ -189,6 +189,24 @@
     sp.innerHTML = RAIL_ICO[name] || '';
     return sp;
   }
+  // 계정과 명단의 연결은 관리자 권한이다. 공개 메일 대조는 화면 표시에만 쓴다.
+  async function displayCard(api, profile) {
+    if (profile.person_no) return api.myCard();
+    if (!profile.email || !window.crypto || !window.crypto.subtle) return null;
+    var mail = new TextEncoder().encode(profile.email.trim().toLowerCase());
+    var bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', mail));
+    var key = Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    var matches = Object.values(pageData().cards || {}).filter(function (c) { return c.mail_key === key; });
+    if (matches.length !== 1) return null;
+    var c = matches[0];
+    return { table: c.table, label: c.label, interest: c.interest, photo_url: c.photo ? url(c.photo) : '' };
+  }
+  function setRailPhoto(src, element) {
+    var face = element || document.querySelector('.rail-face');
+    if (!face) return;
+    face.replaceChildren();
+    if (src) face.appendChild(h('img', { src: src, alt: '' }));
+  }
   function topBar(api, s, current) {
     if (current === 'board') {
       var bar = h('div', { class: 'lab-top' },
@@ -210,10 +228,18 @@
         railSvg('admin'), h('span', { class: 'rail-admin-t' }, '관리자 대시보드'),
         h('span', { class: 'rail-admin-arw', 'aria-hidden': 'true' }, current === 'admin' ? '▾' : '›')),
       h('div', { class: 'lab-rail-admin' })) : null;
+    var railFace = h('span', { class: 'rail-face', 'aria-hidden': 'true' });
+    if (current !== 'me') {
+      api.myProfile().then(async function (p) {
+        var chosen = (pageData().avatars || []).find(function (a) { return a.id === p.avatar_id; });
+        var card = chosen ? null : await displayCard(api, p);
+        setRailPhoto(chosen ? chosen.src : card && card.photo_url, railFace);
+      }).catch(function () { setRailPhoto('', railFace); });
+    }
     var rail = h('aside', { class: 'lab-rail', 'aria-label': '회원 칸 길 찾기' },
       h('div', { class: 'lab-rail-in' },
         h('div', { class: 'rail-who' },
-          h('span', { class: 'rail-face', 'aria-hidden': 'true' }, (s.user.display_name || '?').slice(0, 1)),
+          railFace,
           h('div', { class: 'rail-who-t' }, h('p', { class: 'rail-who-name' }, s.user.display_name + ' 님'),
             h('p', { class: 'rail-who-role' }, h('span', { class: 'm-pill ' + (isAdmin ? 'is-gold' : 'is-ok') }, isAdmin ? '관리자' : '회원')))),
         h('nav', { class: 'rail-nav', 'aria-label': '회원 칸' }, navList),
@@ -441,7 +467,7 @@
     kw: KW, keywords: keywords, checkKeywords: checkKeywords, keywordList: keywordList, keywordInput: keywordInput,
     cfg: cfg, url: url, safeNext: safeNext, h: h, append: append, params: params, fmtDate: fmtDate, fmtSize: fmtSize,
     pageData: pageData, setStatus: setStatus, notice: notice, clear: clear, errText: errText, userError: userError,
-    guard: guard, topBar: topBar, fakeBadge: fakeBadge, boardBySlug: boardBySlug, boardPath: boardPath, start: start,
+    guard: guard, topBar: topBar, displayCard: displayCard, setRailPhoto: setRailPhoto, fakeBadge: fakeBadge, boardBySlug: boardBySlug, boardPath: boardPath, start: start,
     toast: toast, toastLater: toastLater, toastPending: toastPending, ask: ask, countUp: countUp, btnState: btnState, reduced: reduced,
     root: function () { return root; }
   };

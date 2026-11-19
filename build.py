@@ -1401,6 +1401,9 @@ def member_cards(rules):
             out[r["번호"]] = {"table": name, "label": t["label"],
                               "photo": f'/{t["photo_dir"]}/{r["사진"]}' if r.get("사진") else "",
                               "interest": r.get("관심 분야", "") if name == "people" else None}
+            if name == "people" and r.get("메일") and not is_no(r.get("메일 공개", "")):
+                mail = r["메일"].strip().lower()
+                out[r["번호"]]["mail_key"] = hashlib.sha256(mail.encode()).hexdigest()
     return out
 
 
@@ -1419,7 +1422,6 @@ def build_lab_pages(site):
     # 비밀번호 찾기 · 재설정(11-02 시안 1): 옛 회원 처음 한 번 · 잊었을 때 모두 여기. 예전 주소 /login/join/?step=old 는 여기로 넘김
     site.page("/login/find/", "비밀번호 찾기 · 재설정", lab_shell("find"), scripts=js(LAB_SCRIPTS_BASE), **common)
     site.page("/login/reset/", "비밀번호 새로 정하기", lab_shell("reset"), scripts=js(LAB_SCRIPTS_BASE), **common)
-    site.page("/lab/", "내 정보", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 게시판마다 따로 화면(구성원 · 졸업생처럼 머리 메뉴에서 열림). 글 목록 · 보기 · 쓰기 · 고치기를 한 화면이 맡는다.
     for b in board_data:
         bp = BOARD_BAND_PHOTO.get(b["slug"])
@@ -1432,14 +1434,23 @@ def build_lab_pages(site):
     site.page("/lab/photos/", "사진첩", lab_shell("forward"), scripts=js(LAB_SCRIPTS_BASE), **common)
     # 내 정보(11-02): 내 구성원 카드의 지금 사진 · 관심 분야를 보이려고 카드 번호별 공개 값만 싣는다(공개 화면에 이미 보이는 것).
     # 미리 보기에서는 관리 화면처럼 표를 실어, 가짜 서버가 이 브라우저 안에서 승인한 결과를 보이게 한다
-    me_data = {"boards": board_data, "cards": member_cards(rules)}
+    avatars = []
+    for row in read_table("avatars", ["번호", "이름", "분류"]):
+        key = row["번호"]
+        path = f"/assets/img/avatars/{key}.webp"
+        if not re.fullmatch(r"[a-z0-9-]+", key) or not (ROOT / path[1:]).is_file():
+            raise BuildError(f"data/avatars.csv 캐릭터 '{key}'의 이미지 파일을 확인하십시오.")
+        avatars.append({"id": key, "name": row["이름"], "group": row["분류"], "src": site.asset(path)})
+    member_data = {"boards": board_data, "cards": member_cards(rules), "avatars": avatars}
+    site.page("/lab/", "내 정보", lab_shell("home"), scripts=js(LAB_SCRIPTS_BASE), lab=True, data=member_data)
+    me_data = member_data.copy()
     if fake:
         me_data["site_tables"] = site_tables_data(rules)
     site.page("/lab/me/", "내 정보", lab_shell("me"), scripts=js(LAB_SCRIPTS_BASE, ["/assets/js/lab/site-tables.js"], LAB_SCRIPTS_UPLOAD),
               lab=True, data=me_data)
     # 관리 화면. 미리 보기(가짜 로그인)에서만 공개 표 다섯 개를 화면에 실어 가짜 서버가 이 브라우저 안에서 고치게 한다.
     # 진짜 서버에서는 서버 도우미(site-content)가 GitHub 의 표를 읽고 고친다(이 화면에 표를 싣지 않음).
-    admin_data = {"boards": board_data}
+    admin_data = member_data.copy()
     if fake:
         admin_data["site_tables"] = site_tables_data(rules)
     site.page("/lab/admin/", "관리", lab_shell("admin"), scripts=js(LAB_SCRIPTS_BASE, LAB_SCRIPTS_TEXT, LAB_SCRIPTS_ADMIN),
