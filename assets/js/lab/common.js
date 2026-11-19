@@ -190,12 +190,16 @@
     return sp;
   }
   // 계정과 명단의 연결은 관리자 권한이다. 공개 메일 대조는 화면 표시에만 쓴다.
+  async function directoryMailKey(email) {
+    if (!email || !window.crypto || !window.crypto.subtle) return null;
+    var mail = new TextEncoder().encode(email.trim().toLowerCase());
+    var bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', mail));
+    return Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
   async function displayCard(api, profile) {
     if (profile.person_no) return api.myCard();
-    if (!profile.email || !window.crypto || !window.crypto.subtle) return null;
-    var mail = new TextEncoder().encode(profile.email.trim().toLowerCase());
-    var bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', mail));
-    var key = Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    var key = await directoryMailKey(profile.email);
+    if (!key) return null;
     var matches = Object.values(pageData().cards || {}).filter(function (c) { return c.mail_key === key; });
     if (matches.length !== 1) return null;
     var c = matches[0];
@@ -467,7 +471,7 @@
     kw: KW, keywords: keywords, checkKeywords: checkKeywords, keywordList: keywordList, keywordInput: keywordInput,
     cfg: cfg, url: url, safeNext: safeNext, h: h, append: append, params: params, fmtDate: fmtDate, fmtSize: fmtSize,
     pageData: pageData, setStatus: setStatus, notice: notice, clear: clear, errText: errText, userError: userError,
-    guard: guard, topBar: topBar, displayCard: displayCard, setRailPhoto: setRailPhoto, fakeBadge: fakeBadge, boardBySlug: boardBySlug, boardPath: boardPath, start: start,
+    guard: guard, topBar: topBar, displayCard: displayCard, directoryMailKey: directoryMailKey, setRailPhoto: setRailPhoto, fakeBadge: fakeBadge, boardBySlug: boardBySlug, boardPath: boardPath, start: start,
     toast: toast, toastLater: toastLater, toastPending: toastPending, ask: ask, countUp: countUp, btnState: btnState, reduced: reduced,
     root: function () { return root; }
   };

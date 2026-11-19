@@ -623,6 +623,7 @@
           leaving_to: u.leaving_to || null, legacy: !!u.legacy, old_username: u.old_username || null };
       });
     },
+    adminMemberPortraits: function (keys) { return rpc('admin_member_portraits', { public_mail_keys: keys }); },
     adminProfileRequests: async function () {
       var rows = await rpc('admin_list_profile_requests');
       rememberPhotos(rows);

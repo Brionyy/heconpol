@@ -796,6 +796,13 @@
           leaving_to: u.leaving_to || null, legacy: !!u.legacy, old_username: u.old_username || null };
       }));
     },
+    adminMemberPortraits: async function (keys) {
+      var s = load(); needAdmin(s);
+      return Promise.all(s.users.filter(function (u) { return u.role !== 'pending'; }).map(async function (u) {
+        var key = await window.Lab.directoryMailKey(u.email);
+        return { id: u.id, mail_key: keys.includes(key) ? key : null, avatar_id: u.avatar_id };
+      }));
+    },
     adminProfileRequests: async function () {
       var s = load(); needAdmin(s);
       return delay((s.requests || []).filter(function (r) { return r.status === 'pending'; }).map(function (r) {

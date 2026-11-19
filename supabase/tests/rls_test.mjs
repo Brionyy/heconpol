@@ -503,6 +503,13 @@ await ok('구성원 카드 잇기 · 끊기(번호), 같은 카드를 두 회원
 await denied('회원은 구성원 카드 번호를 직접 못 바꿈', () => as('member', q => q(`update profiles set person_no = 3 where id = '${U.member}'`)), /permission denied/);
 await ok('관리자는 회원 메일을 봄', () => as('admin', async q => eq((await q(`select admin_member_email('${U.member}') m`)).rows[0].m, 'member@example.test', '메일'), { aal: 'aal2' }));
 await denied('회원은 남의 메일을 못 봄', () => as('member', q => q(`select admin_member_email('${U.alumni}')`)), /관리자만/);
+await ok('관리자 사진 조회는 명단과 일치한 회원만 반환', () => as('admin', async q => {
+  const rows = (await q("select * from admin_member_portraits(array[encode(sha256(convert_to('member@example.test','UTF8')), 'hex')])")).rows;
+  eq(rows.length, 1, '일치 수');
+  eq(rows[0].id, U.member, '회원');
+  eq(rows[0].mail_key.length, 64, '대조 값');
+}, { aal: 'aal2' }));
+await denied('일반 회원은 관리자 사진 목록을 조회할 수 없음', () => as('member', q => q("select * from admin_member_portraits('{}')")), /관리자만/);
 await ok('탈퇴 요청 취소', async () => {
   await db.query(`update profiles set withdraw_requested_at = now() where id = $1`, [U.alumni]);
   await as('admin', q => q(`select admin_cancel_withdraw('${U.alumni}')`), { aal: 'aal2' , keep: true });

@@ -40,6 +40,14 @@
   function pill(text, tone) { return h('span', { class: 'pill is-' + (tone || 'mute') }, text); }
   // 얼굴: 이름 첫 글자 동그라미(사진이 없는 자리). tone 은 등급 · 구분 색
   function face(name, tone, big) { return h('span', { class: 'face' + (tone ? ' is-' + tone : '') + (big ? ' is-lg' : ''), 'aria-hidden': 'true' }, (name || '?').slice(0, 1)); }
+  function portraitFace(src, big) {
+    var el = h('span', { class: 'face portrait-face' + (big ? ' is-lg' : ''), 'aria-hidden': 'true' });
+    if (src) Promise.resolve(src).then(function (url) {
+      if (url) el.appendChild(h('img', { src: url, alt: '', loading: 'lazy', decoding: 'async',
+        onerror: function () { this.remove(); } }));
+    }).catch(function () { /* 사진을 읽을 수 없으면 빈 사진 칸으로 둔다. */ });
+    return el;
+  }
   function num(n) { return L.countUp(h('span', { class: 'num-roll' }), n); }
   // 목록 차례로 올라옴(17): 화면이 열릴 때 한 번, 앞 8개까지 40ms 간격(transform · opacity 만)
   function rise(els) {
@@ -824,10 +832,25 @@
   // ------------------------------------------------------------ 회원: 얼굴 · 상태 꼬리표 표(146) + 사람 찾기(245)
   async function drawMembers(ctx) {
     var root = ctx.root;
+    var data = L.pageData(), cards = data.cards || {};
+    var byMail = new Map(), avatars = new Map((data.avatars || []).map(function (a) { return [a.id, a.src]; }));
+    Object.values(cards).forEach(function (card) {
+      if (card.mail_key) byMail.set(card.mail_key, byMail.has(card.mail_key) ? null : card);
+    });
+    var records = new Map();
+    try {
+      var matches = await ctx.api.adminMemberPortraits(Array.from(byMail.keys()));
+      matches.forEach(function (m) { records.set(m.id, m); });
+    } catch (err) { showError(ctx, err); }
+    function memberFace(p, big) {
+      var m = records.get(p.id) || {};
+      var card = p.person_no ? cards[String(p.person_no)] : byMail.get(m.mail_key);
+      return portraitFace(card && card.photo ? L.url(card.photo) : avatars.get(m.avatar_id), big);
+    }
     var uid = q('u');
     if (uid) {
       var p = ctx.people.filter(function (x) { return x.id === uid; })[0];
-      if (p) return memberDetail(ctx, p);
+      if (p) return memberDetail(ctx, p, memberFace(p, true));
       root.appendChild(L.notice('그 회원을 찾지 못했습니다.', 'error'));
     }
     var members = ctx.people.filter(function (p) { return p.role !== 'pending'; });
@@ -854,7 +877,7 @@
       var rows = list.map(function (p) {
         var isMe = p.id === ctx.s.user.id;
         return h('tr', {},
-          h('th', { scope: 'row' }, h('a', { class: 'mem-who', href: link({ tab: 'members', u: p.id }) }, face(p.display_name, ROLE_TONE[p.role]),
+          h('th', { scope: 'row' }, h('a', { class: 'mem-who', href: link({ tab: 'members', u: p.id }) }, memberFace(p),
             h('span', { class: 'mem-name' }, hit(p.display_name, w)), isMe ? pill('나', 'navy') : null, p.withdraw_requested ? pill('탈퇴 요청', 'err') : null)),
           h('td', { class: 'mem-id' }, hit(p.username, w)), h('td', {}, pill(p.kind, KIND_TONE[p.kind])),
           h('td', {}, pill(ROLE[p.role] || p.role, ROLE_TONE[p.role])),
@@ -875,7 +898,7 @@
     draw();
   }
 
-  async function memberDetail(ctx, p) {
+  async function memberDetail(ctx, p, portrait) {
     var root = ctx.root, api = ctx.api, isMe = p.id === ctx.s.user.id;
     var email = await api.memberEmail(p.id);
     var data = await api.siteLoad(), T = window.LabSiteTables;
@@ -889,7 +912,7 @@
     root.appendChild(h('p', { class: 'back' }, h('a', { href: link({ tab: 'members' }) }, '회원 목록으로')));
     // 머리: 큰 얼굴 + 이름 + 알약 + 사실 줄
     root.appendChild(glow(h('section', { class: 'md-head' },
-      face(p.display_name, ROLE_TONE[p.role], true),
+      portrait,
       h('div', { class: 'md-who' }, title('h2', 'md-name', p.display_name),
         h('p', { class: 'md-pills' }, pill(ROLE[p.role] || p.role, ROLE_TONE[p.role]), pill(STATUS[p.status] || p.status, STATUS_TONE[p.status]), pill(p.kind, KIND_TONE[p.kind]), isMe ? pill('나', 'navy') : null)),
       h('dl', { class: 'md-facts' },
@@ -1064,7 +1087,7 @@
           h('span', { class: 'mi-ico is-out', 'aria-hidden': 'true' }), '빼기'),
         h('p', { class: 'row-more-note' }, '빼거나 옮긴 뒤에도 알림의 [되돌리기]로 되돌릴 수 있습니다.')));
     var nameCell = h('a', { class: 'sr-name', href: editHref },
-      name === 'people' || name === 'alumni' ? face(title0, name === 'people' ? KIND_TONE['재학'] : KIND_TONE['졸업']) : null,
+      name === 'people' || name === 'alumni' ? portraitFace(r['사진'] && ctx.api.sitePhotoUrl(photoDir + '/' + r['사진'])) : null,
       h('span', { class: 'site-row-name' }, title0));
     var cells;
     if (name === 'people') {
