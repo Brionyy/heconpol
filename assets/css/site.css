@@ -2638,3 +2638,179 @@ html .btn[disabled],
   .comments { padding: var(--sp-5) var(--sp-4); }
   .comments form.form { padding: var(--sp-4); }
 }
+
+/* ---------- 2026-11-19 좌측 사이드바 관리 구역 분리 · 아이콘 · 카드형 탭 업그레이드 ---------- */
+.rail-ico {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  opacity: .78;
+  transition: opacity .18s ease, color .18s ease;
+}
+.rail-ico svg { width: 100%; height: 100%; display: block; }
+.rail-nav a {
+  justify-content: flex-start;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 0 12px;
+  margin-inline: -12px;
+  transition: background .18s ease, color .18s ease;
+}
+.rail-nav a:hover {
+  background: rgba(255, 255, 255, .07);
+  text-decoration: none;
+}
+.rail-nav a:hover .rail-ico,
+.rail-nav a[aria-current="page"] .rail-ico { opacity: 1; color: var(--gold); }
+
+/* 관리자 전용 구역: 일반 메뉴와 선 · 라벨 · 금빛 카드형 버튼으로 확실히 구분 */
+.rail-admin-zone {
+  padding-top: var(--sp-4);
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  display: grid;
+  gap: 10px;
+}
+.rail-sec-lbl {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  color: rgba(201, 164, 92, .9);
+  text-transform: uppercase;
+}
+.rail-admin-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 13px;
+  margin-inline: -12px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(201, 164, 92, .16), rgba(201, 164, 92, .06));
+  border: 1px solid rgba(201, 164, 92, .42);
+  color: #fff;
+  font-size: var(--fs-menu);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .14);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+}
+.rail-admin-btn .rail-ico { color: var(--gold); opacity: 1; }
+.rail-admin-t { flex: 1 1 auto; }
+.rail-admin-arw { font-size: 15px; opacity: .75; transition: transform .18s ease; }
+.rail-admin-btn:hover {
+  background: linear-gradient(135deg, rgba(201, 164, 92, .25), rgba(201, 164, 92, .11));
+  border-color: rgba(201, 164, 92, .72);
+  text-decoration: none;
+  color: #fff;
+}
+.rail-admin-btn:hover .rail-admin-arw { transform: translateX(2px); opacity: 1; }
+.rail-admin-btn.is-active {
+  background: linear-gradient(135deg, rgba(201, 164, 92, .24), rgba(255, 255, 255, .07));
+  border-color: var(--gold);
+  box-shadow: inset 3px 0 0 var(--gold), 0 4px 14px rgba(0, 0, 0, .2);
+}
+
+/* 관리 화면 하위 탭: 둥근 카드형 + 아이콘 + 배지/카운트 */
+.lab-rail .admin-tabs {
+  margin-top: 2px;
+  padding-left: 0;
+  border-left: 0;
+}
+.lab-rail .admin-tabs > ul {
+  display: grid;
+  gap: 3px;
+}
+.lab-rail .admin-tabs a {
+  min-height: 40px;
+  padding: 0 11px;
+  margin-inline: -10px;
+  border-radius: 9px;
+  gap: 8px;
+  color: rgba(255, 255, 255, .74);
+  transition: background .16s ease, color .16s ease;
+}
+.lab-rail .admin-tabs a:hover {
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  text-decoration: none;
+}
+.lab-rail .admin-tabs a:hover .rail-ico { opacity: 1; color: var(--gold); }
+.lab-rail .admin-tabs a[aria-current="page"],
+.lab-rail .admin-tabs .is-on > a {
+  background: rgba(255, 255, 255, .11);
+  box-shadow: inset 0 0 0 1px rgba(201, 164, 92, .34);
+  color: #fff;
+  font-weight: 600;
+}
+.lab-rail .admin-tabs a[aria-current="page"] .rail-ico,
+.lab-rail .admin-tabs .is-on > a .rail-ico {
+  opacity: 1;
+  color: var(--gold);
+}
+.rail-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.rail-cnt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  color: rgba(255, 255, 255, .86);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.lab-rail .rail-sub {
+  margin: 4px 0 6px 10px !important;
+  padding-left: 12px !important;
+  border-left: 1px solid rgba(255, 255, 255, .16);
+  display: grid !important;
+  gap: 2px;
+}
+.lab-rail .rail-sub a {
+  justify-content: flex-start;
+  min-height: 36px;
+  padding: 0 10px;
+  margin-inline: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, .68);
+}
+.lab-rail .rail-sub .rail-ico { width: 15px; height: 15px; }
+.lab-rail .rail-sub a[aria-current="page"] {
+  background: rgba(201, 164, 92, .16);
+  box-shadow: inset 0 0 0 1px rgba(201, 164, 92, .45);
+  color: #fff;
+}
+.lab-rail .tab-ink.is-y { display: none; }
+
+@media (max-width: 1040px) {
+  .rail-admin-zone {
+    grid-column: 1 / -1;
+    padding-top: var(--sp-2);
+    gap: 8px;
+  }
+  .rail-admin-btn {
+    margin-inline: 0;
+    min-height: 40px;
+  }
+  .lab-rail .admin-tabs > ul {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .lab-rail .admin-tabs a {
+    margin-inline: 0;
+    padding: 0 12px;
+  }
+}

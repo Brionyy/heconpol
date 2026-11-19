@@ -179,6 +179,16 @@
   function signOutBtn(api, cls) {
     return h('button', { type: 'button', class: 'btn btn-small ' + cls, onclick: function () { api.signOut().then(function () { location.replace(url('/')); }); } }, '로그아웃');
   }
+  var RAIL_ICO = {
+    home: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7.5L16 7v9.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1z"/><path d="M12.5 3.5V7H16"/><path d="M7 10.5h6M7 13.5h4"/></svg>',
+    me: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.8" r="3.2"/><path d="M3.8 16.5a6.2 6.2 0 0 1 12.4 0"/></svg>',
+    admin: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5l6 2.5v4.8c0 3.7-2.5 6.4-6 7.7-3.5-1.3-6-4-6-7.7V5l6-2.5z"/><path d="M7.5 10.2l1.8 1.8 3.4-3.6"/></svg>'
+  };
+  function railSvg(name) {
+    var sp = h('span', { class: 'rail-ico', 'aria-hidden': 'true' });
+    sp.innerHTML = RAIL_ICO[name] || '';
+    return sp;
+  }
   function topBar(api, s, current) {
     if (current === 'board') {
       var bar = h('div', { class: 'lab-top' },
@@ -189,20 +199,25 @@
     }
     var wrap = document.querySelector('[data-lab-page]');
     if (wrap) wrap.classList.add('lab-has-rail');
+    var isAdmin = s.user.role === 'admin';
     var items = [['home', '/lab/', '내 글 · 임시저장'], ['me', '/lab/me/', '내 정보']];
-    if (s.user.role === 'admin') items.push(['admin', '/lab/admin/', '관리']);
-    // 시안 A3: 이름 앞에 첫 글자 동그라미(얼굴), 등급은 점 붙은 알약, 지금 위치는 옅은 알약이 앞 화면 자리에서 미끄러져 옴
     var navList = h('ul', {}, items.map(function (x) {
-      return h('li', {}, h('a', { href: x[1], 'aria-current': current === x[0] ? 'page' : null }, x[2]));
+      return h('li', {}, h('a', { href: x[1], 'aria-current': current === x[0] ? 'page' : null }, railSvg(x[0]), h('span', {}, x[2])));
     }));
+    var adminZone = isAdmin ? h('div', { class: 'rail-admin-zone' + (current === 'admin' ? ' is-open' : '') },
+      h('p', { class: 'rail-sec-lbl' }, 'ADMIN · 연구실 관리'),
+      h('a', { class: 'rail-admin-btn' + (current === 'admin' ? ' is-active' : ''), href: '/lab/admin/', 'aria-current': current === 'admin' ? 'page' : null },
+        railSvg('admin'), h('span', { class: 'rail-admin-t' }, '관리자 대시보드'),
+        h('span', { class: 'rail-admin-arw', 'aria-hidden': 'true' }, current === 'admin' ? '▾' : '›')),
+      h('div', { class: 'lab-rail-admin' })) : null;
     var rail = h('aside', { class: 'lab-rail', 'aria-label': '회원 칸 길 찾기' },
       h('div', { class: 'lab-rail-in' },
         h('div', { class: 'rail-who' },
           h('span', { class: 'rail-face', 'aria-hidden': 'true' }, (s.user.display_name || '?').slice(0, 1)),
           h('div', { class: 'rail-who-t' }, h('p', { class: 'rail-who-name' }, s.user.display_name + ' 님'),
-            h('p', { class: 'rail-who-role' }, h('span', { class: 'm-pill ' + (s.user.role === 'admin' ? 'is-gold' : 'is-ok') }, s.user.role === 'admin' ? '관리자' : '회원')))),
+            h('p', { class: 'rail-who-role' }, h('span', { class: 'm-pill ' + (isAdmin ? 'is-gold' : 'is-ok') }, isAdmin ? '관리자' : '회원')))),
         h('nav', { class: 'rail-nav', 'aria-label': '회원 칸' }, navList),
-        h('div', { class: 'lab-rail-admin' }),
+        adminZone,
         h('div', { class: 'rail-foot' }, signOutBtn(api, 'btn-on-navy'))));
     requestAnimationFrame(function () { slideMark(navList, 'rail'); });
     return [rail, fakeBadge()];

@@ -21,8 +21,8 @@
   var KIND_TONE = { '재학': 'navy', '졸업': 'gold', '교수': 'ok', '기타': 'mute' };
   var TABLE_ORDER = ['people', 'alumni', 'news', 'projects', 'courses'];
   // 기록 '자세히'의 표 이름(가짜 서버는 표 이름, 서버 도우미는 파일 경로로 돌려줌)
-  var FILE_LABEL = { people: '구성원', alumni: '졸업생', news: '소식', projects: '수행연구', courses: '교과목',
-    'data/people.csv': '구성원', 'data/alumni.csv': '졸업생', 'data/news.csv': '소식', 'data/projects.csv': '수행연구', 'data/courses.csv': '교과목' };
+  var FILE_LABEL = { people: '재학생', alumni: 'Alumni', news: '소식', projects: '수행연구', courses: '교과목',
+    'data/people.csv': '재학생', 'data/alumni.csv': 'Alumni', 'data/news.csv': '소식', 'data/projects.csv': '수행연구', 'data/courses.csv': '교과목' };
   var TABLE_HELP = {
     people: ['졸업하면 그 줄의 [더 보기] › [졸업생으로 옮기기].']
   };
@@ -133,14 +133,14 @@
     var tab = q('tab') || 'todo';
     var ctx = { api: api, s: s, me: me, people: people, helps: helps, reqs: reqs, msg: msg, root: root };
     // 관리 탭은 왼쪽 남색 세로 판 안에(사이트 내용 안쪽 다섯은 들여 쓴 하위 줄), 작업면 맨 위에는 지금 탭 이름
-    var todo = todoCount(ctx), nav = tabNav(tab, todo, q('t'));
+    var todo = todoCount(ctx), nav = tabNav(tab, todo, q('t'), people.length);
     var slot = root.querySelector('.lab-rail-admin');
     if (slot) slot.appendChild(nav); else root.appendChild(nav);
     tabInk(nav);
     var tabName = (TABS.filter(function (t) { return t[0] === tab; })[0] || TABS[0])[1];
     var isTodo = tab === 'todo' || !TABS.some(function (t) { return t[0] === tab; });
     root.appendChild(h('div', { class: 'work-head' }, title('h2', 'work-title', [tabName,
-      tab === 'site' ? h('span', { class: 'work-sub' }, FILE_LABEL[q('t')] || '구성원') : null]),
+      tab === 'site' ? h('span', { class: 'work-sub' }, FILE_LABEL[q('t')] || '재학생') : null]),
       isTodo ? h('p', { class: 'work-count' }, todo ? ['남은 일 ', h('b', {}, num(todo)), '건'] : pill('남은 일 없음', 'ok')) : null));
     root.appendChild(msg);
     var draw = { todo: drawTodo, members: drawMembers, site: drawSite, handover: drawHandover, log: drawLog }[tab] || drawTodo;
@@ -164,14 +164,35 @@
       ctx.helps.filter(function (r) { return r.status === 'open'; }).length + groupReqs(ctx.reqs).length;   // 변경 요청은 사람 수(카드 수)
   }
 
-  function tabNav(cur, todo, tbl) {
+  var TAB_ICO = {
+    todo: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="13" height="13" rx="2.5"/><path d="M7 10.2l2 2 4-4.2"/></svg>',
+    members: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7" r="2.6"/><path d="M2.8 15.8a4.7 4.7 0 0 1 9.4 0"/><circle cx="13.8" cy="7.8" r="2.1"/><path d="M13.5 11.4a4.2 4.2 0 0 1 3.7 4.4"/></svg>',
+    site: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.8"/><path d="M3.4 10h13.2M10 3.2c2.2 2 2.2 11.6 0 13.6M10 3.2c-2.2 2-2.2 11.6 0 13.6"/></svg>',
+    handover: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="10" r="3.2"/><path d="M10.7 10h6.5M14.8 10v2.6M17.2 10v1.8"/></svg>',
+    log: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.8"/><path d="M10 6.2V10l2.8 1.8"/></svg>',
+    people: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.8" r="2.8"/><path d="M4.5 16a5.5 5.5 0 0 1 11 0"/></svg>',
+    alumni: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.2L10 4.5l7.5 3.7L10 12 2.5 8.2z"/><path d="M5.5 10v3.8c0 1.2 2 2.2 4.5 2.2s4.5-1 4.5-2.2V10"/></svg>',
+    news: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h12v9.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5.5z"/><path d="M7 9h6M7 12.2h4"/></svg>',
+    projects: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 6.2a1.5 1.5 0 0 1 1.5-1.5h3.5l1.6 1.8h5.5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4.7a1.5 1.5 0 0 1-1.5-1.5V6.2z"/></svg>',
+    courses: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h9.5A2.5 2.5 0 0 1 16 7v9H6.2A2.2 2.2 0 0 0 4 18V4.5z"/><path d="M4 15.8A2.2 2.2 0 0 1 6.2 14H16"/></svg>'
+  };
+  function tabSvg(k) {
+    var sp = h('span', { class: 'rail-ico', 'aria-hidden': 'true' });
+    sp.innerHTML = TAB_ICO[k] || '';
+    return sp;
+  }
+
+  function tabNav(cur, todo, tbl, memberCount) {
     return h('nav', { class: 'admin-tabs', 'aria-label': '관리 화면 탭' }, h('ul', {}, TABS.map(function (t) {
       var on = cur === t[0];
       var sub = t[0] === 'site' ? h('ul', { class: 'rail-sub' }, TABLE_ORDER.map(function (k) {
-        return h('li', {}, h('a', { href: link({ tab: 'site', t: k }), 'aria-current': on && (FILE_LABEL[tbl] ? tbl : 'people') === k ? 'page' : null }, FILE_LABEL[k]));
+        return h('li', {}, h('a', { href: link({ tab: 'site', t: k }), 'aria-current': on && (FILE_LABEL[tbl] ? tbl : 'people') === k ? 'page' : null },
+          tabSvg(k), h('span', {}, FILE_LABEL[k])));
       })) : null;
+      var right = t[0] === 'todo' && todo ? h('span', { class: 'badge', 'aria-label': '남은 일 ' + todo + '건' }, num(todo))
+        : (t[0] === 'members' && memberCount ? h('span', { class: 'rail-cnt', 'aria-label': '전체 회원 ' + memberCount + '명' }, num(memberCount)) : null);
       return h('li', { class: on ? 'is-on' : null }, h('a', { href: link({ tab: t[0] }), 'aria-current': on && t[0] !== 'site' ? 'page' : null },
-        h('span', {}, t[1]), t[0] === 'todo' && todo ? h('span', { class: 'badge', 'aria-label': '남은 일 ' + todo + '건' }, num(todo)) : null), sub);
+        h('span', { class: 'rail-lbl' }, tabSvg(t[0]), h('span', {}, t[1])), right), sub);
     })));
   }
 
