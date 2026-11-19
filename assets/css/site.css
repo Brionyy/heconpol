@@ -332,7 +332,7 @@ summary:hover .chev, summary:hover .cnt { color: var(--ink); }
 .course-art svg * { vector-effect: non-scaling-stroke; }
 .course-art .gold { stroke: var(--gold-deep); stroke-width: 1.8; }
 .course h2 { font-size: var(--fs-h2); line-height: 1.25; margin: 0; }
-.course p { margin: 0; max-width: var(--measure); }
+.course p { margin: 0; max-width: none; }
 /* 과목 소개(10-28 연구자: "과목소개는 기본적으로 나오게"): 과목 이름 아래 영어 원문 한 문단. 그림은 과목 이름 옆(위)에 둔다 */
 .course .course-desc { margin-top: var(--sp-3); }
 @supports (animation-timeline: view()) {
@@ -2586,7 +2586,7 @@ a.bd-pg:hover { background: var(--tint); }
 .main-inner > .prose > .lead-block,
 .main-inner > .prose > .sec,
 .main-inner > .wrap.list > .grp,
-.main-inner > .wrap.courses { max-width: none; }
+.main-inner > .wrap.courses > .course { max-width: none; }
 
 /* [항목 7] 내 정보 화살표 · 비활성 단추 명도 대비 보강(AA 4.5:1 이상) */
 .reqcards-arrow,
