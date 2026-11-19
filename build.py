@@ -537,10 +537,11 @@ class Site:
             return self.url(u) + "?v=" + digest
         return self.url(u)
 
-    def csp(self, globe=False):
+    def csp(self, globe=False, map_frame=False):
         sb = f" {self.supabase}" if self.supabase else ""
         # 첫 화면 지구본 부품(cobe 2.0.1)은 머리에 빈 꾸밈 글('' 과 ':root{}')을 넣는다. 그 두 글만 지문으로 허용한다
         style = "style-src 'self'" + ("".join(f" 'sha256-{h}'" for h in COBE_STYLE_SHA) if globe else "")
+        frame = "frame-src https://maps.google.com https://www.google.com" if map_frame else "frame-src 'none'"
         parts = [
             "default-src 'none'",
             "script-src 'self'",
@@ -550,7 +551,7 @@ class Site:
             f"connect-src 'self'{sb}",
             "media-src 'self'",
             "object-src 'none'",
-            "frame-src 'none'",
+            frame,
             "base-uri 'self'",
             "form-action 'self'",
             "manifest-src 'self'",
@@ -611,14 +612,15 @@ class Site:
 
     def page(self, path, title, body, *, kind="inner", lang="ko", lab=False, scripts=(), data=None, heading=None,
              sub=None, description=None, index=None, photo=None, photo_alt="", art=None, cv=None, modules=(),
-             band_photo=None, band_search=None):
+             band_photo=None, band_search=None, map_frame=False):
         """화면 하나를 기록해 둔다. path 는 '/about/' 같은 주소. index 는 제목 띠의 '이 화면 바로가기'(id, 이름, 수).
         cv 는 제목 띠 이름 아래 작은 'CV' 링크 주소(교수 화면). modules 는 다른 파일을 불러 쓰는 동작 파일(첫 화면 지구본).
         band_photo 는 제목 띠 바탕 사진('photos/파일', 그림 설명), band_search 는 띠 안 찾기 칸(주소, 안내 글). 세미나 게시판(11-13)."""
         self.pages.append(dict(path=path, title=title, body=body, kind=kind, lang=lang, lab=lab,
                                scripts=list(scripts), data=data, heading=heading, sub=sub,
                                description=description, index=index, photo=photo, photo_alt=photo_alt, art=art, cv=cv,
-                               modules=list(modules), band_photo=band_photo, band_search=band_search))
+                               modules=list(modules), band_photo=band_photo, band_search=band_search,
+                               map_frame=map_frame))
 
     def render(self, p):
         name = self.cfg.get("이름", "")
@@ -698,7 +700,7 @@ class Site:
                         f'<div class="wrap"><div class="band-text">{title}{look}</div></div></div>')
         values = {
             "lang": p["lang"],
-            "csp": self.csp(globe="/assets/js/globe.js" in p["modules"]),
+            "csp": self.csp(globe="/assets/js/globe.js" in p["modules"], map_frame=p["map_frame"]),
             "title": esc(full_title),
             "head_extra": "\n".join(head_extra),
             "css": esc(self.asset("/assets/css/site.css")),
@@ -996,7 +998,42 @@ def build_pages(site):
     for r in read_table("pages", ["주소", "제목", "글 파일"]):
         meta, src = split_front(read_text(r["글 파일"]))
         lang = r.get("언어") or "ko"
-        body = f'<div class="wrap prose">{by_section(md(src))}</div>'
+        sec_html = by_section(md(src))
+        is_about = r["주소"] == "/about/"
+        if is_about:
+            photo_src = esc(url("/assets/img/photos/gsph221.jpg"))
+            visit_head = (
+                '<div class="visit-card">'
+                '<div class="visit-media">'
+                f'<figure class="visit-photo"><img src="{photo_src}" alt="서울대학교 보건대학원 221동 외관" loading="lazy">'
+                '<figcaption>서울대학교 보건대학원 221동 · 426호</figcaption></figure>'
+                '<div class="visit-map">'
+                '<iframe class="visit-iframe" title="서울대학교 보건대학원 221동 위치 지도" '
+                'src="https://maps.google.com/maps?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99&t=&z=16&ie=UTF8&iwloc=&output=embed" '
+                'loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>'
+                '</div></div>'
+                '<div class="visit-info"><div class="visit-addr">'
+            )
+            visit_tail = (
+                '</div>'
+                '<p class="visit-transit">2호선 서울대입구역 3번 출구(5511 · 5513번) · 신림선 관악산역 1번 출구(5516번) → 보건대학원 앞 하차</p>'
+                '<div class="visit-apps">'
+                '<a class="visit-app visit-app--naver" href="https://map.naver.com/p/search/%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
+                '<span class="visit-dot" aria-hidden="true"></span>네이버 지도</a>'
+                '<a class="visit-app visit-app--kakao" href="https://map.kakao.com/?q=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90%20%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90%20221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
+                '<span class="visit-dot" aria-hidden="true"></span>카카오맵</a>'
+                '<a class="visit-app visit-app--google" href="https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EB%8C%80%ED%95%99%EA%B5%90+%EB%B3%B4%EA%B1%B4%EB%8C%80%ED%95%99%EC%9B%90+221%EB%8F%99" target="_blank" rel="noopener noreferrer">'
+                '<span class="visit-dot" aria-hidden="true"></span>Google 지도</a>'
+                '</div></div></div>'
+            )
+            sec_html = re.sub(
+                r'(<h2 id="visit">.*?</h2><div class="sec-body">)(.*?)(</div></section>)',
+                lambda m: m.group(1) + visit_head + m.group(2) + visit_tail + m.group(3),
+                sec_html,
+                count=1,
+                flags=re.S,
+            )
+        body = f'<div class="wrap prose">{sec_html}</div>'
         if r["주소"] in timelines:
             # '구분' 칸(경력 · 학력)마다 따로 묶는다. 다른 연구실 교수 소개처럼 나눔(연구자, 10-27). 칸이 비면 '이력' 하나
             parts = {}
@@ -1008,14 +1045,15 @@ def build_pages(site):
                     f'<span class="tl-yr">{esc(t["연도"])}</span><span class="tl-t">{text_lang(t["내용"])}</span></li>'
                     for t in rows) + '</ol></section>'
                 for name, rows in parts.items())
-            body = (f'<div class="wrap prose prose--aside"><div class="prose-main">{by_section(md(src))}</div>'
+            body = (f'<div class="wrap prose prose--aside"><div class="prose-main">{sec_html}</div>'
                     f'<aside class="timeline" aria-label="{esc(r.get("큰 제목") or r["제목"])} 이력">{lists}</aside></div>')
         # 'CV 주소' 칸(교수 화면): 비우면 CV 링크 없이 만든다
         cv = safe_url(r.get("CV 주소", ""))
         cv = cv if r.get("CV 주소") and cv != "#" and not cv.lower().startswith("mailto:") else None
         site.page(r["주소"], r["제목"], body, lang=lang,
                   heading=r.get("큰 제목") or r["제목"], sub=r.get("작은 제목") or None,
-                  photo=r.get("사진") or None, photo_alt=r.get("사진 설명", ""), cv=cv)
+                  photo=r.get("사진") or None, photo_alt=r.get("사진 설명", ""), cv=cv,
+                  map_frame=is_about)
 
     # ---- 연구 분야(2회차: 분야 이름은 왼쪽 칸, 소개와 글 목록은 오른쪽 칸)
     posts = read_table("research_posts", ["분야", "날짜", "제목"])
