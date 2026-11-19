@@ -1,8 +1,9 @@
-// A1: 실시간 하이엔드 WebGL 지구본
+// 첫 화면 WHO 협력센터 장면: 실시간 WebGL 3D 지구본 (백금 실버-슬레이트 대륙 · 미드나잇 네이비 바다 · 서울 금색 포인트)
+// 장면이 나타날 때 4초 동안 38도를 부드럽게 돌아 자리를 잡고 멈추며, 화면 밖 · 탭 숨김 · '동작 줄이기' 설정에서는 즉시 멈춘다.
 const slide = document.querySelector(".slide--globe");
-if (slide) startGlobeA(slide);
+if (slide) startGlobe(slide);
 
-function startGlobeA(slide) {
+function startGlobe(slide) {
   const CFG = {
     lonRest: 115.0,
     latTilt: 20.0,
@@ -39,6 +40,8 @@ function startGlobeA(slide) {
     uniform float uReady;
 
     const float PI = 3.14159265359;
+    const vec2 TEX_SIZE = vec2(2048.0, 1024.0);
+    const vec2 INV_TEX  = vec2(1.0 / 2048.0, 1.0 / 1024.0);
 
     vec2 camToLonLat(vec3 n) {
       float cl = cos(uAngles.y), sl = sin(uAngles.y);
@@ -50,10 +53,33 @@ function startGlobeA(slide) {
       return vec2(lon, lat);
     }
 
-    float sampleSdf(vec2 lonLat) {
-      float u = fract(lonLat.x / (2.0 * PI) + 0.5);
-      float v = clamp(0.5 - lonLat.y / PI, 0.001, 0.999);
-      return texture2D(uSdf, vec2(u, v)).r;
+    // 4-tap Bicubic B-spline texture lookup: C2 continuous curves even at extreme polar grazing angles
+    float sampleSdfBicubic(vec2 lonLat) {
+      vec2 uv = vec2(fract(lonLat.x / (2.0 * PI) + 0.5), clamp(0.5 - lonLat.y / PI, 0.001, 0.999));
+      vec2 coord = uv * TEX_SIZE - 0.5;
+      vec2 idx = floor(coord);
+      vec2 f = coord - idx;
+      vec2 f2 = f * f;
+      vec2 f3 = f2 * f;
+
+      vec2 w0 = (1.0 - f) * (1.0 - f) * (1.0 - f) / 6.0;
+      vec2 w1 = (3.0 * f3 - 6.0 * f2 + 4.0) / 6.0;
+      vec2 w2 = (-3.0 * f3 + 3.0 * f2 + 3.0 * f + 1.0) / 6.0;
+      vec2 w3 = f3 / 6.0;
+
+      vec2 g0 = w0 + w1;
+      vec2 g1 = w2 + w3;
+      vec2 h0 = ((idx + (w1 / g0) + 0.5) * INV_TEX);
+      vec2 h1 = ((idx + 2.0 + (w3 / g1) + 0.5) * INV_TEX);
+
+      float s00 = texture2D(uSdf, vec2(h0.x, h0.y)).r;
+      float s10 = texture2D(uSdf, vec2(h1.x, h0.y)).r;
+      float s01 = texture2D(uSdf, vec2(h0.x, h1.y)).r;
+      float s11 = texture2D(uSdf, vec2(h1.x, h1.y)).r;
+
+      float sx0 = mix(s10, s00, g0.x);
+      float sx1 = mix(s11, s01, g0.x);
+      return mix(sx1, sx0, g0.y);
     }
 
     void main() {
@@ -62,25 +88,23 @@ function startGlobeA(slide) {
       float r2 = dot(d, d);
       float r = sqrt(r2);
 
-      vec3 L = normalize(vec3(-0.52, 0.56, 0.64));
+      vec3 L = normalize(vec3(-0.50, 0.55, 0.67));
       vec2 limbDir = r > 1e-4 ? d / r : vec2(0.0, -1.0);
-      float sunSide = clamp(dot(vec3(limbDir.x, -limbDir.y, 0.25), L) * 0.65 + 0.45, 0.0, 1.0);
+      float sunSide = clamp(dot(vec3(limbDir.x, -limbDir.y, 0.25), L) * 0.65 + 0.40, 0.0, 1.0);
 
-      vec3 goldAtmo = vec3(0.885, 0.915, 0.968);
-      vec3 navyAtmo = vec3(0.150, 0.245, 0.415);
-      vec3 haloCol = mix(navyAtmo, goldAtmo, pow(sunSide, 1.35));
+      // Soft, deep navy-slate atmospheric halo (NO white halo!)
+      vec3 haloCol = mix(vec3(0.08, 0.15, 0.28), vec3(0.22, 0.35, 0.56), pow(sunSide, 1.4));
 
-      if (r > 1.22) {
+      if (r > 1.18) {
         gl_FragColor = vec4(0.0);
         return;
       }
 
-      float outerFalloff = exp(-max(r - 1.0, 0.0) * 18.0);
-      float outerAlpha = outerFalloff * (0.25 * sunSide + 0.075);
+      float outerFalloff = exp(-max(r - 1.0, 0.0) * 22.0);
+      float outerAlpha = outerFalloff * (0.16 * sunSide + 0.04);
 
       if (r >= 1.0) {
-        float edgeAA = smoothstep(1.0, 0.9965, r);
-        gl_FragColor = vec4(haloCol, outerAlpha * (1.0 - edgeAA));
+        gl_FragColor = vec4(haloCol, outerAlpha);
         return;
       }
 
@@ -89,76 +113,66 @@ function startGlobeA(slide) {
       vec3 V = vec3(0.0, 0.0, 1.0);
 
       vec2 ll = camToLonLat(N);
-      float raw = uReady > 0.5 ? sampleSdf(ll) : 0.0;
-      float sdfPx = (raw - 0.40) * 20.0;
+      // Exact coastline is 5.0 / 12.0 = 0.4166667
+      float raw = uReady > 0.5 ? sampleSdfBicubic(ll) : 0.0;
+      float sdfTex = (raw - 0.4166667) * 12.0;
 
-      // Subtle coastal bevel relief
-      float eps = 0.0017;
-      float sx = uReady > 0.5 ? sampleSdf(ll + vec2(eps / max(cos(ll.y), 0.18), 0.0)) - raw : 0.0;
-      float sy = uReady > 0.5 ? sampleSdf(ll + vec2(0.0, eps)) - raw : 0.0;
-      vec3 bevelN = normalize(N + vec3(-sx * 3.0, -sy * 3.0, 0.0));
+      // Convert texel SDF to local spherical surface distance (correcting equirectangular polar stretch!)
+      float cosLat = max(cos(ll.y), 0.18);
+      float dAng = 1.0 / (uGlobe.z * max(z, 0.14));
+      float aa = clamp((2048.0 / 6.2831853) * dAng / pow(cosLat, 0.55), 0.55, 2.4);
+
+      // Clean, borderless anti-aliased land mask (NO white outline!)
+      float land = smoothstep(-aa * 0.70, aa * 0.70, sdfTex) * step(0.5, uReady);
+      float shelf = smoothstep(-3.8, 0.0, sdfTex) * (1.0 - land) * step(0.5, uReady);
+      float inland = smoothstep(0.0, 4.5, sdfTex);
 
       float diff = clamp(dot(N, L), 0.0, 1.0);
-      float bevelDiff = clamp(dot(bevelN, L), 0.0, 1.0);
 
-      float dAng = 1.0 / (uGlobe.z * max(z, 0.16));
-      float aa = clamp(2048.0 / 6.2831853 * dAng, 0.55, 2.2);
-      float land = smoothstep(-aa * 0.65, aa * 0.65, sdfPx);
-      float shelf = smoothstep(-5.5, 0.0, sdfPx) * (1.0 - land);
-      // Coastal luminosity rim inside continents: slightly brighter near coasts, calm velvet toward deep interior
-      float coastRimGlow = exp(-max(sdfPx, 0.0) * 0.28);
-
-      // Ocean
-      vec3 oceanShadow = vec3(0.024, 0.048, 0.100);
-      vec3 oceanMid    = vec3(0.046, 0.092, 0.178);
-      vec3 oceanLit    = vec3(0.078, 0.148, 0.270);
-      vec3 oceanCol = mix(oceanShadow, oceanMid, smoothstep(0.0, 0.48, diff));
+      // Deep midnight navy ocean
+      vec3 oceanShadow = vec3(0.022, 0.045, 0.096);
+      vec3 oceanMid    = vec3(0.044, 0.088, 0.172);
+      vec3 oceanLit    = vec3(0.074, 0.142, 0.262);
+      vec3 oceanCol = mix(oceanShadow, oceanMid, smoothstep(0.0, 0.50, diff));
       oceanCol = mix(oceanCol, oceanLit, pow(diff, 1.6));
-      oceanCol += vec3(0.025, 0.042, 0.072) * shelf * (0.35 + 0.65 * diff);
+      oceanCol += vec3(0.018, 0.034, 0.062) * shelf * (0.35 + 0.65 * diff);
 
       vec3 Hvec = normalize(L + V);
-      float oceanSpec = pow(max(dot(N, Hvec), 0.0), 28.0) * 0.075;
-      oceanCol += vec3(0.86, 0.90, 0.97) * oceanSpec;
+      float oceanSpec = pow(max(dot(N, Hvec), 0.0), 26.0) * 0.055;
+      oceanCol += vec3(0.55, 0.68, 0.88) * oceanSpec;
 
-      // Continents: refined architectural relief + subtle silk micro-grid (watch-dial guilloche feel)
-      float micro = 0.965 + 0.035 * sin(ll.y * 540.0) * cos(ll.x * 540.0 * max(cos(ll.y), 0.2));
-      vec3 landShadow = vec3(0.165, 0.215, 0.305);
-      vec3 landMid    = vec3(0.345, 0.415, 0.525);
-      vec3 landHi     = vec3(0.615, 0.685, 0.785);
-      vec3 landCol = mix(landShadow, landMid, 0.28 + 0.58 * smoothstep(0.0, 0.80, bevelDiff));
-      landCol = mix(landCol, landHi, (pow(bevelDiff, 1.95) * 0.46 + coastRimGlow * 0.24 * (0.35 + 0.65 * diff)));
-      landCol *= micro;
+      // Smooth satin steel-silver continents (borderless, zero moire, zero white halo)
+      vec3 landShadow = vec3(0.125, 0.178, 0.275);
+      vec3 landMid    = vec3(0.255, 0.335, 0.455);
+      vec3 landHi     = vec3(0.455, 0.545, 0.668);
+      vec3 landCol = mix(landShadow, landMid, 0.26 + 0.62 * smoothstep(0.0, 0.82, diff));
+      landCol = mix(landCol, landHi, pow(diff, 1.85) * 0.48);
+      // Very gentle interior depth (no outline!)
+      landCol *= (0.96 + 0.04 * inland);
 
       vec3 surf = mix(oceanCol, landCol, land);
 
-      // Crisp 1px shoreline highlight
-      float coastLine = 1.0 - smoothstep(0.0, aa * 1.22, abs(sdfPx));
-      vec3 coastCol = mix(vec3(0.68, 0.75, 0.85), vec3(0.96, 0.98, 1.00), smoothstep(0.05, 0.85, diff));
-      surf = mix(surf, coastCol, coastLine * (0.46 + 0.42 * diff) * step(0.5, uReady));
-
-      // Spherical graticule (15 deg)
+      // Delicate spherical graticule (15 deg), fading cleanly toward poles and horizon limb
       float gLon = abs(sin(ll.x * 12.0));
       float gLat = abs(sin(ll.y * 12.0));
-      float wLon = clamp(12.0 * dAng / max(cos(ll.y), 0.15), 0.006, 0.18);
+      float wLon = clamp(12.0 * dAng / max(cosLat, 0.20), 0.006, 0.16);
       float wLat = clamp(12.0 * dAng, 0.006, 0.12);
-      float mer = (1.0 - smoothstep(0.0, wLon * 1.25, gLon)) * smoothstep(1.48, 1.15, abs(ll.y));
-      float par = 1.0 - smoothstep(0.0, wLat * 1.25, gLat);
-      float eq  = 1.0 - smoothstep(0.0, dAng * 1.55, abs(ll.y));
+      float mer = (1.0 - smoothstep(0.0, wLon * 1.25, gLon)) * smoothstep(1.42, 1.08, abs(ll.y));
+      float par = (1.0 - smoothstep(0.0, wLat * 1.25, gLat)) * smoothstep(1.46, 1.20, abs(ll.y));
+      float eq  = 1.0 - smoothstep(0.0, dAng * 1.50, abs(ll.y));
 
-      float limbFade = smoothstep(0.04, 0.38, z);
+      float limbFade = smoothstep(0.08, 0.42, z);
       float gridMask = max(mer, par) * limbFade;
-      surf = mix(surf, mix(vec3(0.75, 0.82, 0.92), vec3(0.93, 0.96, 1.00), land), gridMask * mix(0.11, 0.15, land));
-      surf = mix(surf, vec3(0.82, 0.67, 0.40), eq * limbFade * 0.30);
+      surf = mix(surf, mix(vec3(0.52, 0.64, 0.82), vec3(0.74, 0.82, 0.92), land), gridMask * mix(0.085, 0.105, land));
+      surf = mix(surf, vec3(0.79, 0.64, 0.37), eq * limbFade * 0.26);
 
-      // Fresnel atmospheric rim light
-      float fresnel = pow(1.0 - z, 3.8);
-      vec3 rimCol = mix(vec3(0.17, 0.27, 0.44), vec3(0.89, 0.92, 0.97), pow(sunSide, 1.25));
-      surf += rimCol * fresnel * (0.18 + 0.42 * sunSide);
+      // Restrained navy-blue Fresnel atmosphere (NO white border line!)
+      float fresnel = pow(1.0 - z, 4.2);
+      vec3 rimCol = mix(vec3(0.08, 0.16, 0.30), vec3(0.32, 0.46, 0.68), pow(sunSide, 1.35));
+      surf += rimCol * fresnel * (0.14 + 0.26 * sunSide);
 
-      float rimEdge = smoothstep(0.992, 0.999, r);
-      surf = mix(surf, rimCol * 1.06, rimEdge * (0.24 + 0.38 * sunSide));
-
-      float sphereAA = smoothstep(1.0, 0.9965, r);
+      // Seamless subpixel anti-aliasing at sphere horizon
+      float sphereAA = smoothstep(1.0, 0.9955, r);
       vec3 finalRgb = mix(haloCol, surf, sphereAA);
       float finalA = mix(outerAlpha, 1.0, sphereAA);
       gl_FragColor = vec4(finalRgb, finalA);
@@ -268,7 +282,7 @@ function startGlobeA(slide) {
       ctx.stroke();
 
       const g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, 12);
-      g.addColorStop(0, `rgba(243, 227, 189, ${(0.42 * a).toFixed(3)})`);
+      g.addColorStop(0, `rgba(243, 227, 189, ${(0.40 * a).toFixed(3)})`);
       g.addColorStop(1, "rgba(201, 164, 92, 0)");
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -276,7 +290,7 @@ function startGlobeA(slide) {
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 3.1, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 3.0, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(246, 232, 198, ${(0.98 * a).toFixed(3)})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(11, 21, 40, ${(0.72 * a).toFixed(3)})`;
