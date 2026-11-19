@@ -410,14 +410,10 @@
     if (label) el.appendChild(h('span', { class: 'sr-only' }, label));
     return el;
   }
-  // 목록 날짜: 오늘 · 어제는 시각, 올해는 월.일, 그 전은 연.월.일
+  // 목록 날짜: 모든 글에 연도 포함(YYYY.MM.DD)으로 통일
   function listDate(iso) {
     var d = new Date(iso); if (isNaN(d)) return '';
     var p = function (n) { return String(n).padStart(2, '0'); };
-    var now = new Date(), day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    var diff = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - day) / 864e5);
-    if (diff === 0 || diff === 1) return [h('b', { class: 'bd-new' }, diff ? '어제' : '오늘'), ' ' + p(d.getHours()) + ':' + p(d.getMinutes())];
-    if (d.getFullYear() === now.getFullYear()) return p(d.getMonth() + 1) + '.' + p(d.getDate());
     return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate());
   }
   function boardTable(b, items, page) {
