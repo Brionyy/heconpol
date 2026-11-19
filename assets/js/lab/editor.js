@@ -982,6 +982,22 @@
         return { chars: n, minutes: Math.max(1, Math.round(n / 500)), photos: area.querySelectorAll('img[data-lab-path]').length };
       },
       uploaded: function (paths) { paths.forEach(function (p) { delete pending[p]; }); },
+      setSections: function (headings, markDirty) {
+        area.replaceChildren();
+        (headings || []).forEach(function (label) {
+          var p = document.createElement('p');
+          p.textContent = label;
+          area.appendChild(p);
+          area.appendChild(emptyP());
+        });
+        if (!area.firstChild) area.appendChild(emptyP());
+        changed();
+        if (!markDirty) dirty = false;
+      },
+      clear: function () {
+        area.replaceChildren(emptyP());
+        changed();
+      },
       busy: function () { return busy > 0; },
       isDirty: function () { return dirty; },
       clean: function () { dirty = false; },

@@ -630,7 +630,13 @@
       pinned: !!(old && old.pinned)
     };
 
-    var title = h('input', { type: 'text', class: 'w-title', maxlength: 200, required: true, value: old ? old.title : null, placeholder: '제목을 적어 주십시오', 'aria-label': '제목' });
+    var isNewcomerNew = !old && b.slug === 'newcomer';
+    var NEWCOMER_SECTIONS = [
+      '[이름]', '[학부전공]', '[주요경력]', '[보건대학원 입학 동기]',
+      '[정경방 지원 동기]', '[관심분야]', '[수강중인 과목]', '[정경방에서의 다짐]', '[비전]'
+    ];
+    var title = h('input', { type: 'text', class: 'w-title', maxlength: 200, required: true, value: old ? old.title : null,
+      placeholder: b.slug === 'newcomer' ? '예: 안녕하세요, 26년 전기 석사 1부 신입생 홍길동입니다.' : '제목을 적어 주십시오', 'aria-label': '제목' });
     title.addEventListener('input', function () { dirty = true; tick(); });
     var fileIn = b.files ? h('input', { type: 'file', multiple: true, hidden: true, accept: window.LabUpload.accept.file }) : null;
     var ed = window.LabEditor.create({ api: api, me: s.user.id, md: old ? old.body_md : '', head: title,
@@ -923,13 +929,27 @@
     // 새 글 · 임시저장 글은 바뀐 것이 있으면 3분마다 저절로 임시저장(제목이 있을 때)
     if (draft) setInterval(function () { if (dirty || ed.isDirty()) save('draft', true); }, 180000);
 
+    var tplBtn = isNewcomerNew ? h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: function () {
+      if (ed.isEmpty()) {
+        ed.setSections(NEWCOMER_SECTIONS, true);
+        tplBtn.textContent = '기본 틀 비우기';
+        ed.say('새식구 소개 기본 틀을 다시 넣었습니다.', 'ok');
+      } else {
+        ed.clear();
+        tplBtn.textContent = '기본 틀 다시 넣기';
+        ed.say('본문을 비웠습니다. 필요하면 다시 넣을 수 있습니다.', 'ok');
+      }
+      dirty = true; tick();
+    } }, '기본 틀 비우기') : null;
+
     root.classList.add('lab-root--write');   // 쓰는 칸은 글 보기 폭에 가깝게
     root.appendChild(h('div', { class: 'w-head' },
       h('div', {}, h('p', { class: 'w-crumb' }, '회원 게시판 · ' + b.name), h('h2', {}, old ? (draft ? '임시저장 글 이어 쓰기' : '글 고치기') : '글쓰기')),
-      saveBadge, pvBtn));
+      saveBadge, tplBtn, pvBtn));
     root.appendChild(form);
     document.body.appendChild(pv);
     await ed.ready;
+    if (isNewcomerNew && ed.isEmpty()) ed.setSections(NEWCOMER_SECTIONS, false);
     dirty = false; tick(); drawSave();
     if (!old) title.focus();
   }
