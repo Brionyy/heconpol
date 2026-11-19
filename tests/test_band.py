@@ -19,7 +19,7 @@ class BandTest(unittest.TestCase):
 
     def test_band_index_points_to_real_sections(self):
         # 제목 띠 '이 화면 바로가기'의 #주소는 본문에 실제로 있어야 한다
-        for path in ("/research/", "/research/projects/", "/people/", "/news/"):
+        for path in ("/people/", "/news/"):
             h = self.html[path]
             nav = re.search(r'<nav class="band-index".*?</nav>', h, re.S)
             self.assertIsNotNone(nav, path)

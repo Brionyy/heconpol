@@ -1,13 +1,23 @@
 이름,주소,위
 연구실,/about/,
-소개,/about/,연구실
-연구 분야,/research/,연구실
-수행연구,/research/projects/,연구실
-교수,/professor/,
-교과목,/courses/,
-구성원,/people/,
-졸업생,/alumni/,
-소식,/news/,
-게시판 메뉴 자리,@게시판,
-회원,/lab/,
-EN,/en/,
+연구실소개,/about/,연구실
+교수,/professor/,연구실
+재학생,/people/,연구실
+Alumni,/alumni/,연구실
+수행연구와 세미나,/research/projects/,
+수행연구,/research/projects/,수행연구와 세미나
+교과목,/courses/,수행연구와 세미나
+세미나,/board/seminar/,수행연구와 세미나
+자료실,/board/files/,수행연구와 세미나
+연구활동,/research/,
+건강보장,/research/#health,연구활동
+장기요양,/research/#longterm,연구활동
+국제개발,/research/#global,연구활동
+커뮤니티,/news/,
+행사공지,/news/,커뮤니티
+자유게시판,/board/free/,커뮤니티
+새식구 소개,/board/newcomer/,커뮤니티
+사진첩,/board/photos/,커뮤니티
+추억의 희망방,http://heamang.web-bi.net/,커뮤니티
+Login,/login/,
+Join,/login/join/,

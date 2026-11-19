@@ -229,9 +229,19 @@ def keywords(text):
     return out
 
 
+def tidy_en_keyword(w):
+    """영문 키워드는 첫 글자만 대문자로 맞춘다(health insurance · Healthcare Finance가 섞여 보이던 것, 2026-11-16 2단계).
+    한글이 섞인 것은 그대로, 두 글자 넘는 대문자 낱말(UHC 같은 약어)은 그대로 둔다. 저장된 글은 바꾸지 않고 보일 때만."""
+    if re.search(r"[가-힣]", w) or not re.search(r"[A-Za-z]", w):
+        return w
+    parts = [x if (len(x) > 1 and x.isupper()) else x.lower() for x in w.split(" ")]
+    s = " ".join(parts)
+    return s[:1].upper() + s[1:]
+
+
 def keyword_list(text):
     """키워드마다 한 덩어리(줄이 바뀌어도 낱말 중간에서 끊기지 않게), 사이는 금색 점(CSS .kws)."""
-    return '<ul class="kws">' + "".join(f"<li>{text_lang(w)}</li>" for w in keywords(text)) + "</ul>"
+    return '<ul class="kws">' + "".join(f"<li>{text_lang(tidy_en_keyword(w))}</li>" for w in keywords(text)) + "</ul>"
 
 
 SAFE_URL = re.compile(r"^(https?://|mailto:|/(?!/)|#)", re.I)
@@ -549,6 +559,21 @@ class Site:
             parts.append("upgrade-insecure-requests")
         return "; ".join(parts)
 
+    def nav_en(self, current):
+        items = [
+            ("About", "/about/"),
+            ("Research", "/research/"),
+            ("People", "/people/"),
+            ("Courses", "/courses/"),
+            ("News", "/news/"),
+            ("KO", "/"),
+        ]
+        out = []
+        for label, href in items:
+            cls = "nav-item nav-en" if label == "KO" else "nav-item"
+            out.append(f'<li class="{cls}"><a href="{esc(self.url(href))}">{esc(label)}</a></li>')
+        return "".join(out)
+
     def nav(self, current):
         tops, children = [], {}
         for item in self.menu:
@@ -570,7 +595,8 @@ class Site:
             if kids:
                 sub = "".join(
                     f'<li><a href="{esc(self.url(k["주소"]))}"'
-                    f'{" aria-current=\"page\"" if current.startswith(k["주소"]) else ""}>{esc(k["이름"])}</a></li>'
+                    f'{" target=\"_blank\" rel=\"noopener noreferrer\"" if k["주소"].startswith("http") else ""}'
+                    f'{" aria-current=\"page\"" if not k["주소"].startswith("http") and current.startswith(k["주소"]) else ""}>{esc(k["이름"])}</a></li>'
                     for k in kids)
                 html_items.append(
                     f'<li class="{" ".join(cls)} has-sub">'
@@ -685,7 +711,7 @@ class Site:
             "home": esc(self.url("/")),
             "brand_name": esc(name),
             "brand_en": esc(self.cfg.get("영문 이름", "")),
-            "nav": self.nav(p["path"]),
+            "nav": self.nav_en(p["path"]) if p["lang"] == "en" else self.nav(p["path"]),
             "header_class": "hdr hdr--over" if p["kind"] == "home" else "hdr hdr--solid",
             "band": band,
             "main_class": "main-home" if p["kind"] == "home" else "main-inner",
@@ -693,11 +719,15 @@ class Site:
             "aff_ko": esc(self.url("/assets/img/logos/gsph_ko.png")),
             "aff_snu": esc(self.url("/assets/img/logos/snu_signature_ko.png")),
             "orgs": "" if p["lab"] else self._orgs(),
-            "foot_name": esc(f'{name} · {self.cfg.get("영문 이름", "")}'),
-            "foot_addr": esc(self.cfg.get("주소", "")),
+            "foot_name": esc(self.cfg.get("영문 이름", "")) if p["lang"] == "en" else esc(f'{name} · {self.cfg.get("영문 이름", "")}'),
+            "foot_addr": esc("Room 426, Bldg 221, Graduate School of Public Health, Seoul National University") if p["lang"] == "en" else esc(self.cfg.get("주소", "")),
             "foot_mail": self._foot_mail(),
             "privacy": esc(self.url("/privacy/")),
             "year": esc(self.cfg.get("저작권 연도", "")),
+            "updated": esc(self._updated()),
+            "foot_links": (f'Last updated {esc(self._updated())} · <a href="{esc(self.url("/privacy/"))}">Privacy Policy</a> · © {esc(self.cfg.get("저작권 연도", ""))}'
+                           if p["lang"] == "en" else
+                           f'마지막 고침 {esc(self._updated())} · <a href="{esc(self.url("/privacy/"))}">개인정보 처리방침</a> · © {esc(self.cfg.get("저작권 연도", ""))}'),
             "data_block": data_block,
             "scripts": script_tags,
             "body_class": "is-lab" if p["lab"] else ("is-home" if p["kind"] == "home" else "is-inner"),
@@ -719,6 +749,13 @@ class Site:
             f'<li><a href="{esc(safe_url(o["주소"]))}" rel="noopener noreferrer">{esc(o["제목"])}</a></li>'
             for o in self.orgs)
         return f'<ul class="aff-links" aria-label="기관 · 관련 사이트">{links}</ul>'
+
+    def _updated(self):
+        """꼬리의 '마지막 고침' 날짜: 내용 표 · 글 파일 중 가장 최근에 고친 날(2026-11-16 2단계, 검수 '마지막 수정 날짜 없음')."""
+        import datetime
+        files = list((ROOT / "data").glob("*.csv")) + list((ROOT / "content").glob("*.md"))
+        t = max((f.stat().st_mtime for f in files), default=0)
+        return datetime.date.fromtimestamp(t).isoformat() if t else ""
 
     def _foot_mail(self):
         m = self.cfg.get("대표 메일", "")
@@ -863,7 +900,7 @@ def build_pages(site):
             return f"교과목 {len(read_table('courses', ['과목 이름']))}개"
         if path == "/alumni/":
             al = read_table("alumni", ["졸업 연도", "이름"])
-            return f"졸업생 {len(al)}명 · {min(a['졸업 연도'][:4] for a in al)}년부터" if al else ""
+            return f"박사 {len(al)}명 · {min(a['졸업 연도'][:4] for a in al)}년부터" if al else ""  # 제목 낱말을 되풀이하지 않음(2026-11-16 2단계)
         row = next((r for r in read_table("pages", ["주소", "제목", "글 파일"]) if r["주소"] == path), None)
         if row:
             return " · ".join(x for x in (row.get("큰 제목") or row["제목"], row.get("작은 제목")) if x)
@@ -935,7 +972,7 @@ def build_pages(site):
             return ""
         span = years[0] if years[0] == years[-1] else f"{years[0]}~{years[-1]}"
         href = url("/research/") + (f'#{a["영문 주소"]}' if a.get("영문 주소") else "")
-        return f'<a class="area-more" href="{esc(href)}">글 {len(years)}편 · {span}년<span aria-hidden="true" class="arw-r"></span></a>'
+        return f'<a class="area-more" href="{esc(href)}">글 {len(years)}편<span aria-hidden="true" class="arw-r"></span></a>'  # 연도는 뺌(옛 연도가 첫 화면에서 '멈춘 사이트'로 읽힘, 2026-11-16)
 
     area_html = "".join(
         f'<div class="area"><h3>{esc(a["이름"])}</h3>'
@@ -990,10 +1027,8 @@ def build_pages(site):
         intro = md(read_text(a["글 파일"])) if a.get("글 파일") else f'<p>{esc(a.get("한 줄", ""))}</p>'
         blocks.append(group(a["이름"], a.get("영문", ""), f'<div class="grp-b">{intro}<div class="news-list">{rows}</div></div>',
                             ident=a.get("영문 주소") or "", note_lang="en"))
-    area_index = [(a.get("영문 주소"), a["이름"], f'{sum(1 for p in posts if p["분야"] == a["이름"])}편')
-                  for a in areas if a.get("영문 주소")]
     site.page("/research/", "연구 분야", f'<div class="wrap list">{"".join(blocks)}</div>',
-              sub="건강보장 · 장기요양 · 국제개발", index=area_index)
+              sub="건강보장 · 장기요양 · 국제개발")
     for p in posts:
         if p.get("글 파일"):
             article_page(site, p, "research", "연구 분야", "/research/")
@@ -1014,9 +1049,8 @@ def build_pages(site):
             groups.append(f'<section class="grp grp-fold" id="y{esc(year)}"><details><summary>'
                           f'<h2 class="num">{esc(year)}</h2><span class="cnt">{count}</span>'
                           f'<span class="chev" aria-hidden="true"></span></summary>{items}</details></section>')
-    year_index = [(f"y{y}", y, f"{len(by_year[y])}건") for y in sorted(by_year, reverse=True)]
     site.page("/research/projects/", "수행연구", f'<div class="wrap list">{"".join(groups)}</div>',
-              index=year_index, art=art_bars([(y, len(by_year[y])) for y in sorted(by_year)]))
+              art=art_bars([(y, len(by_year[y])) for y in sorted(by_year)]))
 
     # ---- 교과목
     courses = read_table("courses", ["과목 이름"])

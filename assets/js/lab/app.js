@@ -152,7 +152,7 @@
         // 아이디가 있든 없든 같은 글(10-28 설계서 8절)
         msg.replaceChildren(h('div', { class: 'notice is-error g-err', role: 'alert' },
           h('b', {}, L.errText(err)),
-          h('p', {}, '기존 홈페이지 회원은 예전 아이디 · 비밀번호를 그대로 쓰시면 됩니다. 비밀번호를 잊으셨으면 아래에서 링크를 받으십시오.'),
+          h('p', {}, '기존 홈페이지 회원은 기존 아이디 · 비밀번호를 그대로 쓰시면 됩니다. 비밀번호를 잊으셨으면 아래에서 링크를 받으십시오.'),
           h('div', { class: 'g-acts' },
             who ? h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: async function (ev) {
               var b = ev.currentTarget; busy(b, true); var ok = await sendLink(api, who, place); busy(b, false, ok); if (ok) msg.replaceChildren(place);
@@ -167,7 +167,7 @@
     L.append(root, [gatePage([
       h('h2', { class: 'gate-h' }, '로그인'), msg, form,
       // 11-13 연구자: 기존 회원은 재설정 없이 예전 비밀번호 그대로(첫 로그인 때 서버가 새 방식으로 바꿔 저장)
-      h('p', { class: 'g-note' }, '기존 홈페이지 회원은 예전 아이디 · 비밀번호 그대로 로그인합니다.'),
+      h('p', { class: 'g-note' }, '기존 홈페이지 회원은 기존 아이디 · 비밀번호 그대로 로그인합니다.'),
       h('div', { class: 'g-or' }),
       h('div', { class: 'g-row2' },
         linkBtn(JOIN, '회원가입'),

@@ -103,13 +103,11 @@ class BoardMenuTest(unittest.TestCase):
         site = build.Site(local=True)
         names = [(m["이름"], m["주소"], m.get("위", "")) for m in site.menu]
         top = [n for n in names if not n[2]]
-        self.assertIn(("게시판", "/board/seminar/", ""), top)
-        self.assertLess([t[0] for t in top].index("소식"), [t[0] for t in top].index("게시판"))
-        self.assertEqual([n[0] for n in names if n[2] == "게시판"], [b["name"] for b in build.read_boards()])
+        self.assertEqual([t[0] for t in top], ["연구실", "수행연구와 세미나", "연구활동", "커뮤니티", "Login", "Join"])
         nav = site.nav("/board/free/")
-        self.assertIn('<a href="/board/seminar/" aria-current="page">게시판</a>', nav)
+        self.assertIn('<a href="/news/" aria-current="page">커뮤니티</a>', nav)
         self.assertIn('<a href="/board/free/" aria-current="page">자유게시판</a>', nav)
-        self.assertNotIn('<a href="/lab/" aria-current="page">회원</a>', nav)
+        self.assertNotIn('>EN<', nav)
 
     def test_groups_split_menu(self):
         menu = [{"이름": "연구실", "주소": "/about/", "위": ""}, {"이름": "x", "주소": "@게시판", "위": ""},

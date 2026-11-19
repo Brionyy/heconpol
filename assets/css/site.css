@@ -118,6 +118,7 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .main-inner { padding-bottom: var(--sp-9); }
 .main-inner > .wrap { padding-top: var(--top); }
 .main-inner > .wrap > * { max-width: var(--content-max); }
+.main-inner > .wrap.list:has(.news-list) > .grp { max-width: none; }   /* 소식 목록 오른쪽 끝을 머리 메뉴와 맞춤(2026-11-16 2단계) */
 
 /* ---------------- 첫 화면 사진 슬라이드(교수님이 시안을 고르시기 전이라 V1 값 그대로) */
 .hero { position: relative; height: 780px; color: #fff; overflow: hidden; background: var(--navy-deep); --focus: var(--gold); }
@@ -134,7 +135,7 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .kick { font-size: 17px; font-weight: 500; letter-spacing: 0; color: #fff; margin: 0; }
 .hero-h { font-family: var(--display); font-weight: var(--display-weight); font-size: 66px; line-height: 1.25; margin: 18px 0 12px; letter-spacing: -.01em; }
 .hero-p { font-size: 19px; opacity: .92; margin: 0; }
-.hero-s { font-size: 15px; letter-spacing: 0; opacity: .8; margin: 10px 0 0; }
+.hero-s { font-size: 15px; letter-spacing: 0; opacity: .8; margin: 10px 0 0;  text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 14px rgba(0,0,0,.55); }   /* 밝은 포장길 위 대비(2026-11-16 2단계) */
 .btn-line { display: inline-flex; gap: 12px; align-items: center; margin-top: 34px; border: 1px solid rgba(255, 255, 255, .7); padding: 13px 26px; font-size: 14px; letter-spacing: 0; }
 .btn-line--latin { letter-spacing: .08em; }   /* 영문 대문자 단추만(LAB INTRODUCTION), 한글 단추는 0 */
 .btn-line:hover { border-color: var(--gold); color: var(--gold-tint-hover); }
@@ -627,7 +628,7 @@ summary:hover .chev, summary:hover .cnt { color: var(--ink); }
   .leaves > li::before { content: ""; position: absolute; left: calc(-1 * var(--gap-r)); top: var(--nm-mid); width: calc(var(--gap-r) - var(--sp-3)); height: 1px; background: var(--line); transform-origin: left; }
   .grp { margin-top: var(--sp-7); }
   .grp-fold + .grp-fold { margin-top: 0; }
-  .t [lang="en"], .pf [lang="en"] { hyphens: auto; }
+  .t [lang="en"] { hyphens: auto; }   /* 관심 분야(.pf)는 낱말 가운데서 끊지 않음(2026-11-16 2단계) */
   .people { grid-template-columns: 1fr; }
   .person { padding: var(--sp-4); gap: var(--sp-4); }
   .person .ph { width: 96px; height: 120px; }
@@ -2409,7 +2410,7 @@ html .g-sent .btn[hidden] { display: none; }
 .bd-count b { color: var(--ink); font-weight: 700; }
 .bd-search { display: flex; align-items: center; gap: var(--sp-2); position: relative; margin: 0; }
 .bd-search > .bd-ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--sub); pointer-events: none; }
-.bd-search input { width: 320px; height: 44px; padding: 0 12px 0 40px; border: 1px solid var(--field); background: var(--paper); font-size: var(--fs-meta); border-radius: 0; }
+.bd-search input { width: 320px; height: 44px; padding: 0 12px 0 40px; border: 1px solid var(--field); background: var(--paper); font-size: var(--fs-meta); border-radius: 10px; }
 .bd-search input:focus { outline: 2px solid var(--ink); outline-offset: 0; }
 .bd-search input::placeholder { color: var(--sub); }
 .bd-draft { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); margin: 0 0 var(--sp-5); padding: var(--sp-3) var(--sp-4); background: var(--tint); font-size: var(--fs-meta); }
@@ -2579,3 +2580,29 @@ a.bd-pg:hover { background: var(--tint); }
   .ev-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
 }
 @media print { .band--photo { min-height: 0; background: none; } .band--photo .band-sub { color: inherit; } .band--photo .band-bg, .band-search { display: none; } }
+
+/* ---------- 2026-11-19 선택 반영(항목 5 · 항목 7) ---------- */
+/* [항목 5] 내부 본문 4개 화면 구역 가로 구분선 1280px 전체 폭 통일(본문 읽기 폭 36em 유지) */
+.main-inner > .prose > .lead-block,
+.main-inner > .prose > .sec,
+.main-inner > .wrap.list > .grp,
+.main-inner > .wrap.courses { max-width: none; }
+
+/* [항목 7] 내 정보 화살표 · 비활성 단추 명도 대비 보강(AA 4.5:1 이상) */
+.reqcards-arrow,
+.m-way .join-go,
+.m-back-arw { color: var(--gold-deep, #86672f); }
+html .btn[disabled],
+.btn[disabled] { opacity: 1; background: #dfe3eb; color: #464e5d; border-color: #c5ccd8; box-shadow: none; }
+
+/* [항목 7] 모바일 관리 탭 가로 스크롤 + 오른쪽 남색 그라데이션 페이드 */
+@media (max-width: 640px) {
+  .admin-tabs { position: relative; }
+  .admin-tabs ul { flex-wrap: nowrap; overflow-x: auto; padding-right: 40px; scrollbar-width: none; }
+  .admin-tabs ul::-webkit-scrollbar { display: none; }
+  .admin-tabs a { white-space: nowrap; flex: none; }
+  .admin-tabs::after {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 44px; pointer-events: none;
+    background: linear-gradient(90deg, rgba(19, 32, 58, 0), rgba(19, 32, 58, .96) 78%);
+  }
+}

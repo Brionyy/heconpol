@@ -1,6 +1,8 @@
-<!-- 영어 한 쪽. 연구실 소개 첫 문단은 국문 소개를 옮긴 초안(확인 필요). 교수 소개는 옛 사이트 영문 그대로. -->
+<!-- 영어 한 쪽. 연구실 소개 첫 문단은 국문 소개를 옮긴 초안(확인 필요). 영문 이름은 옛 사이트 연구실 소개의 표기 그대로(2026-11-14 연구자). 교수 소개는 옛 사이트 영문 그대로. -->
 
-The Political Economy of Health Systems and Policy Lab at the Seoul National University Graduate School of Public Health studies health care systems and health policy using the perspectives and methods of economics and political science.
+## Overview
+
+Political Economy of Health Systems and Policy is a research lab at the Seoul National University Graduate School of Public Health. We study health care systems and health policy using the perspectives and methods of economics and political science.
 
 Research topics include health care financing (health insurance), health care delivery (provider payment, physician and hospital behavior), pharmaceuticals and the health industry, population aging and long-term care insurance, equity in financing, utilization and health, and comparative studies of health systems and policies in high-, middle- and low-income countries.
 
