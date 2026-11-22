@@ -1574,8 +1574,8 @@ input.m-switch:focus-visible { outline: 3px solid var(--ink); outline-offset: 0;
 .avatar-gallery { position: relative; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px; }
 .avatar-row { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); justify-items: center; gap: 8px; padding: 16px 0; }
 .avatar-row + .avatar-row { border-top: 1px solid var(--gold-tint); }
-/* 손그림 동물의 첫 캐릭터인 우비 입은 개구리는 항상 새 줄에서 시작한다. */
-.avatar-row > .avatar-option:has(input[value="a4"]) { grid-column-start: 1; }
+/* 그림책 동물의 첫 캐릭터인 하얀 오목눈이는 항상 새 줄에서 시작한다. */
+.avatar-row > .avatar-option:has(input[value="crow-tit"]) { grid-column-start: 1; }
 .avatar-option { position: relative; display: grid; place-items: center; padding: 3px; width: min(100%, 68px); min-width: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
 .avatar-option:hover { background: var(--tint); }
 .avatar-option:has(input:checked) { border-color: var(--navy); outline: 1px solid var(--gold); }
