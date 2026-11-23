@@ -104,23 +104,116 @@
 
   // 구성원 카드 사진: 세로 4:5(480 × 600)로 가운데를 잘라 JPEG 로 다시 그린다(위치 정보 같은 숨은 내용이 빠짐).
   // 관리 화면 카드 고치기와 내 정보 사진 요청(11-02)이 같이 쓴다
-  async function portrait(file) {
+  var OUT_W = 480, OUT_H = 600;
+  // 틀을 따로 고르지 않았을 때의 자리: 가로 가운데, 세로 위쪽 3분의 1
+  function autoRegion(w, hgt) {
+    var r = Math.max(OUT_W / w, OUT_H / hgt), sw = OUT_W / r, sh = OUT_H / r;
+    return { sx: (w - sw) / 2, sy: Math.max(0, (hgt - sh) / 3), sw: sw, sh: sh };
+  }
+  async function decodePhoto(file) {
     var ok = await checkPhoto(file);
     if (!ok.ok) throw window.Lab.userError(ok.error);
-    var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    var W = 480, H = 600, r = Math.max(W / bmp.width, H / bmp.height);
-    var sw = W / r, sh = H / r, sx = (bmp.width - sw) / 2, sy = Math.max(0, (bmp.height - sh) / 3);
+    return createImageBitmap(file, { imageOrientation: 'from-image' });
+  }
+  function drawRegion(bmp, rg) {
     var canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
+    canvas.width = OUT_W; canvas.height = OUT_H;
     var g = canvas.getContext('2d');
-    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-    g.drawImage(bmp, sx, sy, sw, sh, 0, 0, W, H);
-    if (bmp.close) bmp.close();
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, OUT_W, OUT_H);
+    g.drawImage(bmp, rg.sx, rg.sy, rg.sw, rg.sh, 0, 0, OUT_W, OUT_H);
     return canvasToBlob(canvas, 0.85);
+  }
+  async function portrait(file) {
+    var bmp = await decodePhoto(file);
+    try { return await drawRegion(bmp, autoRegion(bmp.width, bmp.height)); }
+    finally { if (bmp.close) bmp.close(); }
+  }
+
+  // 남길 자리 고르기(2026-11-23 연구자 선택 C '펼친 사진 위 틀 옮기기'): 고른 사진 전체를 펼치고 그 위 4:5 금색 틀을
+  // 끌어 옮기거나 네 모서리로 크기를 바꾼다. 키보드는 화살표로 옮기기, + · − 로 크기. 바뀌면 opts.onChange() (0.12초 묶음).
+  // 돌려주는 것: { el, blob(): 지금 틀 자리의 480 × 600 JPEG, destroy() }
+  async function portraitPicker(file, opts) {
+    opts = opts || {};
+    var bmp = await decodePhoto(file);
+    var W = bmp.width, H = bmp.height, R = autoRegion(W, H), first = autoRegion(W, H);
+    var maxW = Math.min(W, H * OUT_W / OUT_H), minW = Math.min(maxW, Math.max(80, maxW * 0.15));
+    function mk(tag, cls, attrs) {
+      var e = document.createElement(tag); if (cls) e.className = cls;
+      Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      return e;
+    }
+    var k0 = Math.min(1, 1000 / Math.max(W, H));   // 화면용은 긴 변 1000px 로 줄여 그림
+    var view = mk('canvas', 'crop-img', { 'aria-hidden': 'true' });
+    view.width = Math.max(1, Math.round(W * k0)); view.height = Math.max(1, Math.round(H * k0));
+    view.getContext('2d').drawImage(bmp, 0, 0, view.width, view.height);
+    var rect = mk('div', 'crop-rect', { tabindex: '0', role: 'group', 'aria-label': '남길 자리 틀. 화살표로 옮기고 더하기 · 빼기로 크기를 바꿉니다' });
+    ['tl', 'tr', 'bl', 'br'].forEach(function (c) { rect.appendChild(mk('span', 'crop-h is-' + c, { 'data-h': c, 'aria-hidden': 'true' })); });
+    var stage = mk('div', 'crop-stage');
+    stage.appendChild(view); stage.appendChild(rect);
+    var reset = mk('button', 'btn-text crop-reset', { type: 'button' }); reset.textContent = '처음 자리로';
+    var hint = mk('p', 'crop-hint');
+    hint.textContent = '금색 틀 안이 소개 사진이 됩니다. 틀을 끌어 옮기고, 모서리 흰 점을 끌어 크기를 바꿉니다.';
+    var row = mk('div', 'crop-row'); row.appendChild(hint); row.appendChild(reset);
+    var wrap = mk('div', 'crop'); wrap.appendChild(stage); wrap.appendChild(row);
+
+    var timer = 0;
+    function notify(now) {
+      if (!opts.onChange) return;
+      clearTimeout(timer);
+      if (now) opts.onChange(); else timer = setTimeout(function () { opts.onChange(); }, 120);
+    }
+    function clamp() {
+      R.sw = Math.min(Math.max(R.sw, minW), maxW); R.sh = R.sw * OUT_H / OUT_W;
+      R.sx = Math.min(Math.max(R.sx, 0), W - R.sw); R.sy = Math.min(Math.max(R.sy, 0), H - R.sh);
+    }
+    function draw() {
+      clamp();
+      rect.style.left = R.sx / W * 100 + '%'; rect.style.top = R.sy / H * 100 + '%';
+      rect.style.width = R.sw / W * 100 + '%'; rect.style.height = R.sh / H * 100 + '%';
+    }
+    var drag = null;
+    rect.addEventListener('pointerdown', function (e) {
+      if (e.button > 0) return;
+      e.preventDefault(); try { rect.setPointerCapture(e.pointerId); } catch (er) { /* 손가락을 이미 뗀 경우 */ } rect.focus({ preventScroll: true });
+      drag = { mode: e.target.getAttribute('data-h') || 'move', x: e.clientX, y: e.clientY, r: { sx: R.sx, sy: R.sy, sw: R.sw, sh: R.sh } };
+    });
+    rect.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var k = stage.clientWidth / W, dx = (e.clientX - drag.x) / k, dy = (e.clientY - drag.y) / k, r0 = drag.r;
+      if (drag.mode === 'move') { R.sx = r0.sx + dx; R.sy = r0.sy + dy; }
+      else {
+        var gx = drag.mode.charAt(1) === 'l' ? -1 : 1, gy = drag.mode.charAt(0) === 't' ? -1 : 1;
+        var ax = gx > 0 ? r0.sx : r0.sx + r0.sw, ay = gy > 0 ? r0.sy : r0.sy + r0.sh;   // 반대쪽 모서리는 그대로
+        var nw = Math.max(r0.sw + gx * dx, (r0.sh + gy * dy) * OUT_W / OUT_H);
+        var lim = Math.min(gx > 0 ? W - ax : ax, (gy > 0 ? H - ay : ay) * OUT_W / OUT_H);
+        nw = Math.min(Math.max(nw, minW), lim);
+        R.sw = nw; R.sh = nw * OUT_H / OUT_W; R.sx = gx > 0 ? ax : ax - nw; R.sy = gy > 0 ? ay : ay - R.sh;
+      }
+      draw(); notify();
+    });
+    function up() { if (drag) { drag = null; notify(true); } }
+    rect.addEventListener('pointerup', up);
+    rect.addEventListener('pointercancel', up);
+    rect.addEventListener('keydown', function (e) {
+      var st = (e.shiftKey ? 40 : 10) * W / Math.max(1, stage.clientWidth), key = e.key, cx = R.sx + R.sw / 2, cy = R.sy + R.sh / 2;
+      if (key === 'ArrowLeft') R.sx -= st; else if (key === 'ArrowRight') R.sx += st;
+      else if (key === 'ArrowUp') R.sy -= st; else if (key === 'ArrowDown') R.sy += st;
+      else if (key === '+' || key === '=' || key === '-' || key === '_') {
+        R.sw += (key === '-' || key === '_' ? 2 : -2) * st; clamp(); R.sx = cx - R.sw / 2; R.sy = cy - R.sh / 2;
+      } else return;
+      e.preventDefault(); draw(); notify();
+    });
+    reset.addEventListener('click', function () { R = { sx: first.sx, sy: first.sy, sw: first.sw, sh: first.sh }; draw(); notify(true); });
+    draw();
+    return {
+      el: wrap,
+      blob: function () { return drawRegion(bmp, { sx: R.sx, sy: R.sy, sw: R.sw, sh: R.sh }); },
+      destroy: function () { clearTimeout(timer); opts.onChange = null; if (bmp.close) bmp.close(); }
+    };
   }
 
   window.LabUpload = {
-    checkPhoto: checkPhoto, checkFile: checkFile, reencodePhoto: reencodePhoto, portrait: portrait, safeName: safeName,
+    checkPhoto: checkPhoto, checkFile: checkFile, reencodePhoto: reencodePhoto, portrait: portrait, portraitPicker: portraitPicker, safeName: safeName,
     limits: { PHOTO_MAX_IN: PHOTO_MAX_IN, PHOTO_MAX_OUT: PHOTO_MAX_OUT, FILE_MAX: FILE_MAX, LONG_SIDE: LONG_SIDE },
     accept: { photo: '.jpg,.jpeg,.png,.webp', file: '.pdf,.hwp,.hwpx,.docx,.xlsx,.pptx' },
     _magicOf: magicOf

@@ -1391,8 +1391,22 @@
     // 사진: 끌어다 놓거나 눌러서 고르는 넓은 칸 하나(휴대폰에서 '선택된 파일 없음'이 잘리던 것)
     var pin = h('input', { type: 'file', class: 'sr-only', id: 'cardreq-file', accept: window.LabUpload ? window.LabUpload.accept.photo : 'image/*' });
     var dropTxt = h('span', { class: 'drop-t' }, pendP ? '다른 사진으로 바꾸려면 여기에 끌어다 놓거나 눌러서 고르기' : '사진을 여기에 끌어다 놓거나 눌러서 고르기');
-    var drop = h('label', { class: 'drop', for: 'cardreq-file' }, dropTxt, h('span', { class: 'drop-s' }, 'JPG · PNG · WebP. 세로 4:5로 자동 조정한 사진이 요청한 모습에 표시됩니다.'));
+    var drop = h('label', { class: 'drop', for: 'cardreq-file' }, dropTxt, h('span', { class: 'drop-s' }, 'JPG · PNG · WebP. 고른 뒤 사진 위 금색 틀을 옮겨 남길 자리를 정합니다.'));
     var msg = h('div');
+    // 11-23 연구자 선택 C: 고른 사진 전체 위에서 4:5 틀을 옮겨 남길 자리를 정한다. 틀이 바뀔 때마다 '요청한 모습'도 바뀜
+    var picker = null, cropSlot = h('div', { class: 'crop-slot' });
+    function setBlob(next) {
+      var nextUrl = URL.createObjectURL(next);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      blob = next;
+      blobUrl = nextUrl;
+      drawWant();
+    }
+    function cropChanged() {
+      var pk = picker;
+      if (!pk || sending) return;
+      pk.blob().then(function (b) { if (pk === picker && !sending) setBlob(b); }).catch(function () {});
+    }
     async function takeFile(f) {
       if (!f || sending) return;
       var version = ++uploadVersion;
@@ -1400,15 +1414,16 @@
       sync();
       msg.replaceChildren();
       try {
-        var next = await window.LabUpload.portrait(f);
-        if (version !== uploadVersion) return;
-        var nextUrl = URL.createObjectURL(next);
-        if (blobUrl) URL.revokeObjectURL(blobUrl);
-        blob = next;
-        blobUrl = nextUrl;
+        var pk = await window.LabUpload.portraitPicker(f, { onChange: cropChanged });
+        if (version !== uploadVersion) { pk.destroy(); return; }
+        var next = await pk.blob();
+        if (version !== uploadVersion) { pk.destroy(); return; }
+        if (picker) picker.destroy();
+        picker = pk;
+        setBlob(next);
+        cropSlot.replaceChildren(pk.el);
         dropTxt.textContent = '고른 사진: ' + (f.name || '사진') + ' · 바꾸려면 다시 끌어다 놓기';
         drop.classList.add('is-set');
-        drawWant();
       } catch (err) {
         if (version === uploadVersion) {
           pin.value = '';
@@ -1442,7 +1457,7 @@
       pendingLine(),
       h('div', { class: 'reqcards' }, nowCard, h('span', { class: 'reqcards-arrow', 'aria-hidden': 'true' }, '→'), wantSlot),
       h('div', { class: 'cardreq-inputs' },
-        h('div', { class: 'field' }, h('span', { class: 'field-l' }, '사진'), pin, drop),
+        h('div', { class: 'field' }, h('span', { class: 'field-l' }, '사진'), pin, drop, cropSlot),
         kw ? h('div', { class: 'field' }, h('span', { class: 'field-l' }, '관심 분야 키워드', h('span', { class: 'm-pill kw-opt' }, '선택'), h('span', { class: 'kw-max' }, '최대 ' + L.kw.max + '개')), kw.el)
           : h('p', { class: 'm-side-note' }, '졸업생 소개에는 관심 분야가 없어 사진만 바꿉니다.')),
       h('div', { class: 'btns' }, sbtn, sNote), msg);
@@ -1459,10 +1474,12 @@
       msg.replaceChildren(); busy(sbtn, true);
       var sent = [];
       try {
+        if (picker) setBlob(await picker.blob());   // 보내기 직전 틀 자리로 다시 그림(마지막 옮김이 빠지지 않게)
         if (blob) { await api.requestProfileChange('photo', blob); sent.push('사진'); }
         if (v !== null) { await api.requestProfileChange('interest', v); sent.push('키워드'); }
         L.toast(sent.join(' · ') + '을(를) 보냈습니다. 조교가 승인하면 구성원 화면에 올라갑니다.', { kind: 'ok' });
         if (blobUrl) URL.revokeObjectURL(blobUrl);
+        if (picker) { picker.destroy(); picker = null; }
         await redraw();
       } catch (err) {
         sending = false;

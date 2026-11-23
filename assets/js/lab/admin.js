@@ -1153,7 +1153,6 @@
   }
 
   // 구성원 사진: 세로 4:5 JPEG(upload.js, 내 정보 사진 요청과 같이 씀)
-  function portrait(file) { return window.LabUpload.portrait(file); }
 
   // 공개 화면 구성원 카드와 같은 모양(build.py person_card)
   function personPreview(row, photoUrl) {
@@ -1189,7 +1188,7 @@
         (from.show_email ? '메일은 본인이 공개에 동의해 넣었습니다.' : '본인이 메일 공개에 동의하지 않아 메일은 비웠습니다.'))));
 
     var preview = name === 'people' ? h('div', { class: 'site-preview' }) : null;
-    var photoBlob = null, photoUrl = null, photoRemoved = false;
+    var photoBlob = null, photoUrl = null, photoRemoved = false, picker = null;
     if (old && old['사진'] && t.photo_dir) photoUrl = await api.sitePhotoUrl(t.photo_dir + '/' + old['사진']);
     var fields = [];
     function values() {
@@ -1214,15 +1213,34 @@
       var pin = h('input', { type: 'file', accept: window.LabUpload ? window.LabUpload.accept.photo : 'image/*' });
       var pmsg = h('span', { class: 'field-err' });
       var rm = h('button', { type: 'button', class: 'btn btn-small btn-ghost', hidden: !photoUrl }, '사진 빼기');
+      // 11-23 연구자 선택 C: 올린 사진 전체 위에서 4:5 금색 틀을 옮겨 남길 자리를 정한다(내 정보 사진 요청과 같은 부품)
+      var cropSlot = h('div', { class: 'crop-slot' }), pickVer = 0;
+      var setPhoto = function (b) {
+        if (photoUrl && photoUrl.indexOf('blob:') === 0) URL.revokeObjectURL(photoUrl);
+        photoBlob = b; photoUrl = URL.createObjectURL(b); redraw();
+      };
       pin.addEventListener('change', async function () {
         pmsg.textContent = '';
         if (!pin.files[0]) return;
-        try { photoBlob = await portrait(pin.files[0]); photoUrl = URL.createObjectURL(photoBlob); photoRemoved = false; rm.hidden = false; redraw(); }
+        var ver = ++pickVer;
+        try {
+          var pk = await window.LabUpload.portraitPicker(pin.files[0], { onChange: function () {
+            if (pk === picker) pk.blob().then(function (b) { if (pk === picker) setPhoto(b); }).catch(function () {});
+          } });
+          var b = await pk.blob();
+          if (ver !== pickVer) { pk.destroy(); return; }
+          if (picker) picker.destroy();
+          picker = pk; setPhoto(b); cropSlot.replaceChildren(pk.el); photoRemoved = false; rm.hidden = false;
+        }
         catch (err) { pmsg.textContent = L.errText(err); pin.value = ''; }
       });
-      rm.addEventListener('click', function () { photoBlob = null; photoUrl = null; photoRemoved = true; pin.value = ''; rm.hidden = true; redraw(); });
-      photoBox = h('div', { class: 'field' }, h('label', {}, '사진', photoCol.hint ? h('span', { class: 'hint' }, photoCol.hint + '. 올리면 세로 4:5로 가운데를 잘라 줄입니다') : null, pin),
-        h('div', { class: 'btns' }, rm), pmsg);
+      rm.addEventListener('click', function () {
+        if (picker) { picker.destroy(); picker = null; }
+        cropSlot.replaceChildren();
+        photoBlob = null; photoUrl = null; photoRemoved = true; pin.value = ''; rm.hidden = true; redraw();
+      });
+      photoBox = h('div', { class: 'field' }, h('label', {}, '사진', photoCol.hint ? h('span', { class: 'hint' }, photoCol.hint + '. 올린 뒤 사진 위 금색 틀을 옮겨 남길 자리를 정합니다') : null, pin),
+        cropSlot, h('div', { class: 'btns' }, rm), pmsg);
     }
 
     var saveBtn = h('button', { type: 'submit', class: 'btn' }, '저장');
@@ -1234,6 +1252,7 @@
       var bad = fields.filter(function (f) { return !f.check(); });
       if (bad.length) { bad[0].input.focus(); showError(ctx, L.userError('빨간 글이 있는 칸을 고쳐 주십시오.'), ferr); return; }
       ferr.replaceChildren();
+      if (picker) { try { photoBlob = await picker.blob(); } catch (er) { showError(ctx, er, ferr); return; } }   // 저장 직전 틀 자리로 다시 그림
       var v = values(), extra = { photos: [], removePhotos: [] };
       if (photoBlob) {
         var file = (v['번호'] || start['번호'] || 'p') + '-' + Date.now().toString(36) + '.jpg';
