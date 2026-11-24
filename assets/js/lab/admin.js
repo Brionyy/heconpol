@@ -15,9 +15,9 @@
   var KINDS = ['재학', '졸업', '교수', '기타'];
   var METHODS = ['연구실이 아는 번호로 전화', '연구실이 아는 메신저', '교수님 확인', '동기 · 선후배 확인', '직접 만남'];
   var ROLE = { pending: '승인 대기', member: '회원', admin: '관리자' };
-  var STATUS = { active: '정상', needs_password: '비밀번호 정하기 전', locked: '잠금' };
+  var STATUS = { active: '정상', needs_password: '첫 로그인 전', locked: '잠금' };
   var ROLE_TONE = { pending: 'mute', member: 'navy', admin: 'gold' };
-  var STATUS_TONE = { active: 'ok', needs_password: 'warn', locked: 'err' };
+  var STATUS_TONE = { active: 'ok', needs_password: 'mute', locked: 'err' };
   var KIND_TONE = { '재학': 'navy', '졸업': 'gold', '교수': 'ok', '기타': 'mute' };
   var TABLE_ORDER = ['people', 'alumni', 'news', 'projects', 'courses'];
   // 기록 '자세히'의 표 이름(가짜 서버는 표 이름, 서버 도우미는 파일 경로로 돌려줌)
@@ -1117,7 +1117,7 @@
     var id = 'f-' + Math.random().toString(36).slice(2, 8), errId = id + '-e';
     var input, get;
     if (col.kind === 'choice') {
-      // 꼭 적을 칸 · 처음 값이 있는 칸(메일 공개 · 첫 화면에)은 '(비움)'을 두지 않는다
+      // 필수 칸 · 처음 값이 있는 칸(메일 공개 · 첫 화면에)은 '(비움)'을 두지 않는다
       input = h('select', { id: id }, col.required || col.default ? null : h('option', { value: '' }, '(비움)'),
         col.choices.map(function (v) { return h('option', { value: v, selected: v === (value || col.default || '') }, v); }));
       get = function () { return input.value; };
@@ -1142,7 +1142,7 @@
     var dl = col.suggest ? h('datalist', { id: id + '-l' }, col.suggest.map(function (v) { return h('option', { value: v }); })) : null;
     var label = col.kind === 'flag'
       ? h('label', { class: 'check', for: id }, input, ' ' + col.name)
-      : h('label', { for: id }, col.name + (col.required ? ' (꼭)' : ''), col.hint ? h('span', { class: 'hint' }, col.hint) : null, input, dl);
+      : h('label', { for: id }, col.name + (col.required ? ' (필수)' : ''), col.hint ? h('span', { class: 'hint' }, col.hint) : null, input, dl);
     function check() {
       var msg = window.LabSiteTables.checkCell(c.rules, col, get());
       err.textContent = msg || '';

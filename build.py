@@ -102,7 +102,7 @@ def check_cell(rules, col, v):
     if v != v.strip():
         return "앞뒤 빈칸을 지워 주십시오"
     if not v:
-        return "꼭 적어야 합니다" if col.get("required") else None
+        return "필수 항목입니다" if col.get("required") else None
     kind = col.get("kind", "text")
     limit = col.get("max") or _DEFAULT_MAX.get(kind, 200)
     if len(v) > limit:

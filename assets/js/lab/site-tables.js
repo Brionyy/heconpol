@@ -90,7 +90,7 @@
     v = v == null ? '' : String(v);
     if (CTRL.test(v)) return '줄 바꿈이나 보이지 않는 글자는 넣을 수 없습니다';
     if (v !== v.trim()) return '앞뒤 빈칸을 지워 주십시오';
-    if (!v) return col.required ? '꼭 적어야 합니다' : null;
+    if (!v) return col.required ? '필수 항목입니다' : null;
     var max = col.max || DEFAULT_MAX[col.kind] || 200;
     if (v.length > max) return max + '자까지 적을 수 있습니다(지금 ' + v.length + '자)';
     switch (col.kind) {
