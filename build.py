@@ -1401,7 +1401,9 @@ def member_cards(rules):
                 continue
             out[r["번호"]] = {"table": name, "label": t["label"],
                               "photo": f'/{t["photo_dir"]}/{r["사진"]}' if r.get("사진") else "",
-                              "interest": r.get("관심 분야", "") if name == "people" else None}
+                              "interest": r.get("관심 분야", "") if name == "people" else None,
+                              # 관리 화면 회원 목록의 석사 · 박사 표시(구성원 '과정', 졸업생 '학위', 2026-11-24)
+                              "course": (r.get("과정") or "") if name == "people" else (r.get("학위") or "")}
             if name == "people" and r.get("메일") and not is_no(r.get("메일 공개", "")):
                 mail = r["메일"].strip().lower()
                 out[r["번호"]]["mail_key"] = hashlib.sha256(mail.encode()).hexdigest()

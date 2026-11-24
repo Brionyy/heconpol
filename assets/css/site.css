@@ -1769,6 +1769,11 @@ mark.hit { background: var(--select); color: inherit; border-radius: 3px; paddin
 a.mem-who:hover .mem-name { text-decoration: underline; text-decoration-color: var(--link-line); text-underline-offset: .3em; }
 .mem-id { font-variant-numeric: tabular-nums; color: var(--sub); }
 .mem-none { color: var(--sub); padding: var(--sp-6) var(--sp-4); }
+/* 회원 목록 묶음 머리(재학생 / 졸업생 · 교수 · 기타)와 석사 · 박사 표시(2026-11-24) */
+.lab .mem-table tbody tr.mem-group > th { text-align: left; font-size: var(--fs-meta); font-weight: 600; color: var(--navy);
+  padding: var(--sp-5) var(--sp-2) var(--sp-2); border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+.lab .mem-table tbody tr.mem-group:hover > th { background: none; }
+.mem-course { margin-left: var(--sp-2); font-size: var(--fs-meta); color: var(--sub); white-space: nowrap; }
 
 /* ---------- 한 사람: 머리 판(큰 얼굴 · 이름 · 알약 · 사실) + 판 격자 */
 .md-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-4) var(--sp-5); align-items: center; padding: var(--sp-6); border-radius: var(--aa-r); background: var(--paper); border: 1px solid var(--line); box-shadow: var(--aa-lift); }

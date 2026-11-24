@@ -856,7 +856,14 @@
       if (p) return memberDetail(ctx, p, memberFace(p, true));
       root.appendChild(L.notice('그 회원을 찾지 못했습니다.', 'error'));
     }
-    var members = ctx.people.filter(function (p) { return p.role !== 'pending'; });
+    // 재학을 맨 위에 묶고(재학 안은 박사과정 → 석사과정), 그다음 교수 · 졸업 · 기타. 같은 묶음 안은 이름 차례(2026-11-24 연구자)
+    var KIND_ORDER = { '재학': 0, '교수': 1, '졸업': 2, '기타': 3 };
+    function courseOf(p) { var c = p.person_no ? cards[String(p.person_no)] : null; return (c && c.course) || ''; }
+    var members = ctx.people.filter(function (p) { return p.role !== 'pending'; }).sort(function (a, b) {
+      return ((KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9)) ||
+        ((courseOf(a).indexOf('박사') === 0 ? 0 : 1) - (courseOf(b).indexOf('박사') === 0 ? 0 : 1)) ||
+        a.display_name.localeCompare(b.display_name, 'ko');
+    });
     var pend = ctx.people.length - members.length;
     var find = h('input', { type: 'search', placeholder: '이름 · 아이디로 찾기', 'aria-label': '이름 · 아이디로 찾기', autocomplete: 'off' });
     var kind = h('select', { 'aria-label': '구분으로 거르기' }, h('option', { value: '' }, '구분 모두'), KINDS.map(function (k) { return h('option', { value: k }, k); }));
@@ -877,16 +884,27 @@
           (!kind.value || p.kind === kind.value) && (!st.value || p.status === st.value);
       });
       if (firstDraw) count.replaceChildren(num(list.length), '명'); else count.textContent = list.length + '명';
-      var rows = list.map(function (p) {
-        var isMe = p.id === ctx.s.user.id;
+      var rows = [], lastGroup = null;
+      list.forEach(function (p) {
+        var group = p.kind === '재학' ? '재학' : '그 밖';
+        if (group !== lastGroup) {
+          var n = list.filter(function (x) { return (x.kind === '재학') === (group === '재학'); }).length;
+          rows.push(h('tr', { class: 'mem-group' }, h('th', { colspan: 6, scope: 'colgroup' },
+            group === '재학' ? '재학생 ' + n + '명' : '졸업생 · 교수 · 기타 ' + n + '명')));
+          lastGroup = group;
+        }
+        rows.push(memberRow(p));
+      });
+      function memberRow(p) {
+        var isMe = p.id === ctx.s.user.id, course = courseOf(p);
         return h('tr', {},
           h('th', { scope: 'row' }, h('a', { class: 'mem-who', href: link({ tab: 'members', u: p.id }) }, memberFace(p),
             h('span', { class: 'mem-name' }, hit(p.display_name, w)), isMe ? pill('나', 'navy') : null, p.withdraw_requested ? pill('탈퇴 요청', 'err') : null)),
-          h('td', { class: 'mem-id' }, hit(p.username, w)), h('td', {}, pill(p.kind, KIND_TONE[p.kind])),
+          h('td', { class: 'mem-id' }, hit(p.username, w)), h('td', {}, pill(p.kind, KIND_TONE[p.kind]), course ? h('span', { class: 'mem-course' }, course) : null),
           h('td', {}, pill(ROLE[p.role] || p.role, ROLE_TONE[p.role])),
           h('td', {}, pill(STATUS[p.status] || p.status, STATUS_TONE[p.status])),
           h('td', {}, p.person_no ? pill('등록', 'ok') : pill('미등록', 'mute')));
-      });
+      }
       body.replaceChildren.apply(body, rows.length ? rows : [h('tr', {}, h('td', { colspan: 6, class: 'mem-none' }, '찾는 회원이 없습니다. 이름 일부나 아이디로 다시 찾아보십시오.'))]);
       if (firstDraw) rise(rows);
       firstDraw = false;
