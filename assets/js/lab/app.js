@@ -131,7 +131,8 @@
   async function login(api) {
     var root = L.root();
     var s = await api.session();
-    var next = L.safeNext(L.params().get('next'), '/lab/');
+    // 로그인 뒤: 회원 전용 화면에서 로그인하러 왔으면(next) 그 화면으로, 머리 메뉴 [Login]처럼 그냥 왔으면 첫 화면으로(2026-11-24 연구자)
+    var next = L.safeNext(L.params().get('next'), '/');
     if (s && s.user.role !== 'pending') { location.replace(L.url(next)); return; }
     L.setStatus('');
     var msg = h('div', { 'aria-live': 'polite' });
