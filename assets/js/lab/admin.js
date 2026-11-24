@@ -128,7 +128,9 @@
     if (!s) return;
     var root = L.root();
     L.append(root, L.topBar(api, s, 'admin'));
-    var me = await api.adminSelf();
+    var mfaSetup = q('mfa') === 'setup';
+    var me = await api.adminSelf(mfaSetup);
+    if (mfaSetup && !me.mfa) { drawMfa(api, root, me); return; }
     var msg = h('div', { class: 'admin-msg', 'aria-live': 'polite' });
     // 넘겨받은 사람이 2단계 인증으로 들어오면 넘기기를 끝낸다(넘긴 사람은 회원이 됨)
     if (me.incoming && me.incoming.length) {
@@ -149,7 +151,8 @@
     var isTodo = tab === 'todo' || !TABS.some(function (t) { return t[0] === tab; });
     root.appendChild(h('div', { class: 'work-head' }, title('h2', 'work-title', [tabName,
       tab === 'site' ? h('span', { class: 'work-sub' }, FILE_LABEL[q('t')] || '재학생') : null]),
-      isTodo ? h('p', { class: 'work-count' }, todo ? ['남은 일 ', h('b', {}, num(todo)), '건'] : pill('남은 일 없음', 'ok')) : null));
+      isTodo ? h('p', { class: 'work-count' }, todo ? ['남은 일 ', h('b', {}, num(todo)), '건'] : pill('남은 일 없음', 'ok')) : null,
+      mfaSetup ? pill('인증 앱 확인 완료', 'ok') : h('a', { class: 'btn', href: link({ mfa: 'setup' }) }, '인증 앱 등록')));
     root.appendChild(msg);
     var draw = { todo: drawTodo, members: drawMembers, site: drawSite, handover: drawHandover, log: drawLog }[tab] || drawTodo;
     await draw(ctx);
@@ -249,13 +252,13 @@
       root.appendChild(h('section', { class: 'mfa-card glow-host' },
         h('div', { class: 'mfa-head' }, h('span', { class: 'mfa-lock', 'aria-hidden': 'true' }),
           h('div', {}, title('h2', 'mfa-h', '인증 앱의 6자리 숫자를 넣어 주십시오'),
-            h('p', { class: 'mfa-lead' }, '관리 화면은 로그인할 때마다 휴대폰 인증 앱의 숫자로 한 번 더 확인합니다.'))), real));
+            h('p', { class: 'mfa-lead' }, '이번 로그인에서 관리 화면을 처음 열 때 한 번만 확인합니다.'))), real));
       return;
     }
     root.appendChild(h('section', { class: 'mfa-card glow-host' },
       h('div', { class: 'mfa-head' }, h('span', { class: 'mfa-lock', 'aria-hidden': 'true' }),
         h('div', {}, title('h2', 'mfa-h', '먼저 2단계 인증을 등록합니다'),
-          h('p', { class: 'mfa-lead' }, '관리 화면은 비밀번호와 휴대폰 인증 앱의 6자리 숫자로 엽니다.'))),
+          h('p', { class: 'mfa-lead' }, '인증 앱 등록은 처음 한 번입니다. 다음부터는 새로 로그인한 뒤 관리 화면을 처음 열 때 6자리만 입력하면 됩니다.'))),
       me.incoming && me.incoming.length ? h('p', { class: 'mfa-note' }, pill('넘겨받는 중', 'warn'), ' ' + me.incoming.join(', ') + ' 님이 관리자를 넘겨주는 중입니다. 등록을 마치면 넘기기가 끝납니다.') : null,
       h('ol', { class: 'mfa-steps' },
         h('li', {}, h('b', {}, '인증 앱 깔기'), h('span', {}, 'Google · Microsoft Authenticator 등')),

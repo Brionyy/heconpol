@@ -678,15 +678,23 @@
       });
     },
 
-    // 나(관리자)의 넘기기 상태 (2단계 인증 없이 관리자 계정으로 바로 열람)
-    adminSelf: async function () {
+    // 등록 화면을 열었을 때만 인증 상태를 확인한다. 운영 검증 후 관리 화면 전체에 적용한다.
+    adminSelf: async function (checkMfa) {
       var m = await needAdminRole();
-      var out = { mfa: true, factor_id: null, leaving_to: null, incoming: [] };
+      if (checkMfa) {
+        var level = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (level.error || !level.data) throw fromServer(level.error, '2단계 인증 상태를 확인하지 못했습니다.');
+        if (level.data.currentLevel !== 'aal2') {
+          var factors = await sb.auth.mfa.listFactors();
+          if (factors.error || !factors.data) throw fromServer(factors.error, '등록된 인증 앱을 확인하지 못했습니다.');
+          var factor = factors.data.totp[0];
+          return { mfa: false, factor_id: factor ? factor.id : null, leaving_to: null, incoming: [] };
+        }
+      }
       var people = await rpc('admin_list_profiles');
       var mine = (people || []).filter(function (u) { return u.id === m.id; })[0];
-      out.leaving_to = mine ? mine.leaving_to || null : null;
-      out.incoming = (people || []).filter(function (u) { return u.leaving_to === m.id; }).map(function (u) { return u.display_name; });
-      return out;
+      return { mfa: true, factor_id: null, leaving_to: mine ? mine.leaving_to || null : null,
+        incoming: (people || []).filter(function (u) { return u.leaving_to === m.id; }).map(function (u) { return u.display_name; }) };
     },
     // 인증 앱 등록 시작: 확인 안 된 옛 등록은 지우고 새로. QR(그림 주소)과 손으로 넣을 열쇠 글을 돌려준다
     registerMfa: async function () {
