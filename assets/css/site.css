@@ -88,6 +88,15 @@ time, .num, .cnt, .tbl, .b-meta, .c-meta, .post-meta, .article .meta { font-vari
 .hdr--solid { background: var(--navy); }
 .hdr-in { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-5); padding-block: var(--sp-4); }
 .brand { display: flex; align-items: center; gap: var(--sp-3); flex-shrink: 0; min-height: 44px; }
+.brand-mark { flex-shrink: 0; display: block; }
+.brand-mark .bm-fill { fill: var(--navy-deep); }
+.brand-mark .bm-none { fill: none; }
+.brand-mark .bm-main { stroke: var(--gold); }
+.brand-mark .bm-bright { stroke: var(--gold-tint); }
+.brand-mark .bm-solid-main { fill: var(--gold); }
+.brand-mark .bm-solid-bright { fill: var(--gold-tint); }
+.brand-mark .bm-solid-contrast { fill: var(--on-navy); }
+.brand-mark .bm-cut-stroke { stroke: var(--navy-deep); }
 .brand b { display: block; font-family: var(--display); font-size: var(--fs-h3); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.3; }
 .brand svg text { font-family: var(--display); }
 .brand small { display: block; font-size: var(--fs-meta); line-height: 1.3; color: var(--on-navy-sub); margin-top: 2px; }
@@ -596,7 +605,7 @@ summary:hover .chev, summary:hover .cnt { color: var(--ink); }
 }
 @media (max-width: 640px) {
   :root { --gutter: 20px; --fs-h1: 34px; --fs-h2: 25px; --fs-h3: 20px; --fs-lead: 19px; --band-top: var(--sp-8); --band-bottom: var(--sp-7); --top: var(--sp-7); }
-  .brand svg { width: 38px; height: 38px; }
+  .brand svg { width: 40px; height: 40px; }
   .brand b { font-size: var(--fs-menu); }
   .brand small { display: none; }
   .menu-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
