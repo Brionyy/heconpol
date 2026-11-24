@@ -128,9 +128,8 @@
     if (!s) return;
     var root = L.root();
     L.append(root, L.topBar(api, s, 'admin'));
-    var mfaSetup = q('mfa') === 'setup';
-    var me = await api.adminSelf(mfaSetup);
-    if (mfaSetup && !me.mfa) { drawMfa(api, root, me); return; }
+    var me = await api.adminSelf();
+    if (!me.mfa) { drawMfa(api, root, me); return; }
     var msg = h('div', { class: 'admin-msg', 'aria-live': 'polite' });
     // 넘겨받은 사람이 2단계 인증으로 들어오면 넘기기를 끝낸다(넘긴 사람은 회원이 됨)
     if (me.incoming && me.incoming.length) {
@@ -151,8 +150,7 @@
     var isTodo = tab === 'todo' || !TABS.some(function (t) { return t[0] === tab; });
     root.appendChild(h('div', { class: 'work-head' }, title('h2', 'work-title', [tabName,
       tab === 'site' ? h('span', { class: 'work-sub' }, FILE_LABEL[q('t')] || '재학생') : null]),
-      isTodo ? h('p', { class: 'work-count' }, todo ? ['남은 일 ', h('b', {}, num(todo)), '건'] : pill('남은 일 없음', 'ok')) : null,
-      mfaSetup ? pill('인증 앱 확인 완료', 'ok') : h('a', { class: 'btn', href: link({ mfa: 'setup' }) }, '인증 앱 등록')));
+      isTodo ? h('p', { class: 'work-count' }, todo ? ['남은 일 ', h('b', {}, num(todo)), '건'] : pill('남은 일 없음', 'ok')) : null));
     root.appendChild(msg);
     var draw = { todo: drawTodo, members: drawMembers, site: drawSite, handover: drawHandover, log: drawLog }[tab] || drawTodo;
     await draw(ctx);

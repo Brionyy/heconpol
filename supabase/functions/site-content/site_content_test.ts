@@ -108,10 +108,11 @@ async function call(body: Record<string, unknown>, opts: { aal?: string; origin?
 const fileAt = (path: string) => { const sha = trees[commits[ref].tree][path]; return sha ? dec(blobs[sha]) : null; };
 function assert(cond: unknown, msg: string) { if (!cond) throw new Error(msg); }
 
-Deno.test('다른 사이트에서 부르면 막힘 · 회원은 막힘 · 관리자는 2단계 인증 없이 통과', async () => {
+Deno.test('다른 사이트와 회원은 막히고, 관리자는 2단계 인증 뒤에만 통과', async () => {
   assert((await call({ action: 'load' }, { origin: 'https://evil.example' })).status === 403, '다른 사이트');
   const a1 = await call({ action: 'load' }, { aal: 'aal1' });
-  assert(a1.status === 200, '관리자는 2단계 인증 없이 통과');
+  assert(a1.status === 403 && a1.body.error.includes('2단계 인증'), '관리자는 2단계 인증 전에는 막힘');
+  assert((await call({ action: 'load' })).status === 200, '관리자는 2단계 인증 뒤에 통과');
   role = 'member';
   assert((await call({ action: 'load' })).status === 403, '회원');
   role = 'admin';
