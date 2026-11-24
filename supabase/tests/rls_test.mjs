@@ -729,5 +729,44 @@ try {
   await db.query(`delete from storage.objects where bucket_id = 'gallery' and name in ($1, $2, $3)`, [`${U.member}/secret.jpg`, `${U.member}/cover1.jpg`, `${U.member}/cover2.jpg`]);
 }
 
+// 2026-11-24 글쓴이 이름 남기기: 탈퇴 · 옛 글도 이름이 보인다(20261124000000_author_name.sql)
+console.log('글쓴이 이름 남기기');
+async function asIn(who, aal = 'aal2') {   // 한 거래 안에서 사람만 바꾼다
+  await db.exec('reset role');
+  await db.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: U[who], role: 'authenticated', aal })]);
+  await db.exec('set local role authenticated');
+}
+async function removeTest(keep) {
+  await db.exec('begin');
+  try {
+    const name = (await db.query('select display_name from profiles where id = $1', [U.member])).rows[0].display_name;
+    await asIn('member', 'aal1');
+    const post = (await db.query(`insert into posts (board, title, body_md) values ('free', '이름 시험', '본문') returning id, author_name`)).rows[0];
+    eq(post.author_name, name, '쓸 때 남긴 글 이름');
+    const cm = (await db.query(`insert into comments (post_id, body) values ($1, '댓글') returning id, author_name`, [post.id])).rows[0];
+    eq(cm.author_name, name, '쓸 때 남긴 댓글 이름');
+    await db.exec('reset role');
+    await db.query('delete from storage.objects where owner_id = $1', [U.member]);
+    await asIn('admin');
+    await db.query('select admin_remove_user($1, $2)', [U.member, keep]);
+    const want = keep ? name : '탈퇴한 회원';
+    eq((await db.query('select author_name from post_list where id = $1', [post.id])).rows[0].author_name, want, '탈퇴 뒤 목록 이름');
+    const c = (await db.query('select author_id, author_name from comment_list where id = $1', [cm.id])).rows[0];
+    eq(c.author_id, null, '탈퇴 뒤 댓글 계정');
+    eq(c.author_name, keep ? name : null, '탈퇴 뒤 댓글 남긴 이름');
+  } finally { await db.exec('rollback'); }
+}
+await ok('쓸 때 이름을 남기고, 탈퇴 뒤에도 그 이름이 보임', () => removeTest(true));
+await ok('탈퇴 때 이름도 지우기를 고르면 \'탈퇴한 회원\'', () => removeTest(false));
+await denied('회원은 글쓴이 이름 칸을 직접 못 씀', () => as('member', q => q(`insert into posts (board, title, author_name) values ('free', 'x', '남의 이름')`)), /permission denied/);
+await ok('옮겨 온 옛 글(계정 없음)은 옛 이름으로 보임', async () => {
+  await db.exec('begin');
+  try {
+    const id = (await db.query(`insert into posts (board, title, author_id, author_name, legacy_id) values ('free', '옛 글', null, '옛 글쓴이', 999001) returning id`)).rows[0].id;
+    await asIn('alumni', 'aal1');
+    eq((await db.query('select author_name from post_list where id = $1', [id])).rows[0].author_name, '옛 글쓴이', '옛 글 이름');
+  } finally { await db.exec('rollback'); }
+});
+
 console.log(`\n통과 ${pass} · 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

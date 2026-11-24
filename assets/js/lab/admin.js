@@ -527,15 +527,17 @@
 
   function withdrawCard(ctx, p) {
     var also = p.person_no ? h('input', { type: 'checkbox' }) : null;
+    var dropName = h('input', { type: 'checkbox' });
     return h('article', { class: 'todo-card' },
       whoCol(p.display_name, [pill(p.kind, KIND_TONE[p.kind]), pill('탈퇴 요청', 'err')], '아이디 ' + p.username),
       h('div', { class: 'todo-body' },
-        h('p', {}, '탈퇴 처리를 하면 계정 · 메일 · 올린 사진과 파일을 지웁니다. 쓴 글은 \'탈퇴한 회원\'으로 남습니다.'),
+        h('p', {}, '탈퇴 처리를 하면 계정 · 메일 · 올린 사진과 파일을 지웁니다. 쓴 글과 댓글은 글쓴이 이름과 함께 남습니다.'),
+        h('label', { class: 'check' }, dropName, ' 글쓴이 이름도 지우기(본인이 원할 때, \'탈퇴한 회원\'으로 보임)'),
         also ? h('label', { class: 'check' }, also, ' 구성원 · 졸업생 명단에서도 빼기') : null),
       h('div', { class: 'todo-acts' },
         h('button', { type: 'button', class: 'btn btn-danger', onclick: act(ctx, async function () {
           var no = p.person_no;
-          await ctx.api.withdrawDone(p.id);
+          await ctx.api.withdrawDone(p.id, !dropName.checked);
           if (also && also.checked && no) await removeCardByNumber(ctx, no);
         }, { title: p.display_name + ' 님을 탈퇴 처리하시겠습니까?', body: '계정 · 메일 · 올린 사진과 파일을 지웁니다. 되돌릴 수 없습니다.', ok: '탈퇴 처리', danger: true }, '탈퇴 처리했습니다.') }, '탈퇴 처리'),
         btn('요청 취소', act(ctx, function () { return ctx.api.withdrawCancel(p.id); }, null, '탈퇴 요청을 취소했습니다.'), 'btn-text')));

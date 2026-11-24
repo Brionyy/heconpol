@@ -311,24 +311,25 @@
     getPost: async function (id) {
       var m = await needMember();
       var admin = m.profile.role === 'admin';
-      var p = await run(sb.from('posts').select('id,board,title,body_md,body_html_legacy,author_id,hidden,legacy_id,created_at,updated_at,status,tags,cover_path,visibility,allow_comments,pinned')
+      var p = await run(sb.from('posts').select('id,board,title,body_md,body_html_legacy,author_id,author_name,hidden,legacy_id,created_at,updated_at,status,tags,cover_path,visibility,allow_comments,pinned')
         .eq('id', Number(id)).maybeSingle());
       if (!p) throw err('없는 글이거나 볼 수 없는 글입니다.');
-      var cs = await run(sb.from('comment_list').select('id,body,author_id,created_at,hidden,avatar_id').eq('post_id', p.id).order('created_at', { ascending: true }));
+      var cs = await run(sb.from('comment_list').select('id,body,author_id,author_name,created_at,hidden,avatar_id').eq('post_id', p.id).order('created_at', { ascending: true }));
       var as = await run(sb.from('attachments').select('id,bucket,path,original_name,mime,size_bytes').eq('post_id', p.id).order('id', { ascending: true }));
       var names = await namesOf([p.author_id].concat((cs || []).map(function (c) { return c.author_id; })));
-      var nameOf = function (uid) { return (uid && names[uid]) || '탈퇴한 회원'; };
+      // 이름 차례: 지금 계정 이름 → 쓸 때 남긴 이름(탈퇴 · 옛 글) → '탈퇴한 회원'
+      var nameOf = function (uid, saved) { return (uid && names[uid]) || saved || '탈퇴한 회원'; };
       var st = settingsOf(p), draft = p.status === 'draft', mine = p.author_id === m.id;
       return {
         post: { id: p.id, board: p.board, title: p.title, body_md: p.body_md, body_html_legacy: p.body_html_legacy || null,
-          author_id: p.author_id, author_name: nameOf(p.author_id), created_at: p.created_at, updated_at: p.updated_at, hidden: p.hidden,
+          author_id: p.author_id, author_name: nameOf(p.author_id, p.author_name), created_at: p.created_at, updated_at: p.updated_at, hidden: p.hidden,
           status: draft ? 'draft' : 'published',
           tags: st.tags, cover_path: st.cover_path, visibility: st.visibility, allow_comments: st.allow_comments, pinned: st.pinned,
           can_comment: !draft && (st.allow_comments || admin),
           // 옮겨 온 글(옛 HTML 본문)은 편집기로 고치면 본문이 사라지므로 고치기는 막고 지우기만
           can_edit: mine && !p.body_html_legacy, can_delete: mine || admin, can_hide: admin && !draft },
         comments: (cs || []).map(function (c) {
-          return { id: c.id, body: c.body, avatar_id: c.avatar_id, author_name: nameOf(c.author_id), created_at: c.created_at, can_edit: c.author_id === m.id, can_delete: c.author_id === m.id || admin };
+          return { id: c.id, body: c.body, avatar_id: c.avatar_id, author_name: nameOf(c.author_id, c.author_name), created_at: c.created_at, can_edit: c.author_id === m.id, can_delete: c.author_id === m.id || admin };
         }),
         attachments: (as || []).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };
@@ -712,7 +713,7 @@
     setEmail: async function (id, email, method) { await fn('admin-account', { action: 'set_email', user_id: id, email: email, method: method }); return true; },
     setKind: async function (id, kind) { await rpc('admin_set_kind', { target: id, new_kind: kind }); return true; },
     linkPerson: async function (id, no) { await rpc('admin_link_person', { target: id, no: no == null || no === '' ? null : Number(no) }); return true; },
-    withdrawDone: async function (id) { await fn('admin-account', { action: 'withdraw_done', user_id: id }); return true; },
+    withdrawDone: async function (id, keepName) { await fn('admin-account', { action: 'withdraw_done', user_id: id, keep_name: keepName !== false }); return true; },
     withdrawCancel: async function (id) { await rpc('admin_cancel_withdraw', { target: id }); return true; },
     linkOld: async function (pendingId, oldId, byClaim) {
       await fn('admin-account', { action: 'link_old', pending_id: pendingId, user_id: oldId, by_claim: !!byClaim });

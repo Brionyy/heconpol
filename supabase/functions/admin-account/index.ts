@@ -1,6 +1,6 @@
 // 서버 도우미 admin-account(2026-10-28 초안): 비밀 열쇠가 있어야 하는 관리자 일 둘.
 // - set_email: 회원 메일 바꾸기. 다른 길로 본인 확인한 방법을 꼭 받고(기록에 남음), 옛 메일에 알린다. 내 계정 메일은 다른 관리자만.
-// - withdraw_done: 탈퇴 처리. 그 회원이 올린 파일을 파일 칸에서 먼저 지운 뒤 admin_remove_user(글은 '탈퇴한 회원'으로 남음).
+// - withdraw_done: 탈퇴 처리. 그 회원이 올린 파일을 파일 칸에서 먼저 지운 뒤 admin_remove_user(글 · 댓글은 글쓴이 이름과 함께 남음. keep_name: false 면 이름도 지워 '탈퇴한 회원'으로 보임).
 // - link_old: 가입 신청이 옛 회원이면 옛 계정 메일로 비밀번호 링크를 보내고, 보낸 뒤에만 신청을 거절(지움)한다.
 //   보내지 못하면(메일 없음 · 한도) 신청을 그대로 두고 까닭을 돌려준다(검토 10-28 5번).
 //   by_claim(11-02, 메일이 바뀐 옛 회원의 '새 메일로 가입 신청'): 신청서에 적은 예전 아이디가 그 계정 아이디와 같을 때만,
@@ -60,7 +60,7 @@ export const handle = handlerOf(async (req, body) => {
         await storage(`/object/${bucket}`, { method: 'DELETE', body: JSON.stringify({ prefixes: names }) });
       }
     }
-    await rpc('admin_remove_user', { target }, me.jwt);
+    await rpc('admin_remove_user', { target, keep_name: body.keep_name !== false }, me.jwt);
     return { ok: true };
   }
 

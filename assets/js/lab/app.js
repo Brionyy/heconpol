@@ -1317,8 +1317,8 @@
     });
 
     var wbtn = h('button', { type: 'button', class: 'btn btn-danger', disabled: p.withdraw_requested, onclick: async function () {
-      var yes = L.ask ? await L.ask({ title: '탈퇴를 요청하시겠습니까?', body: '관리자가 확인한 뒤 계정과 메일, 올린 사진 · 파일을 지웁니다. 글은 이름을 "탈퇴한 회원"으로 바꿔 남깁니다.', ok: '탈퇴 요청', danger: true })
-        : confirm('탈퇴를 요청하시겠습니까? 관리자가 확인한 뒤 계정과 메일, 올린 사진 · 파일을 지웁니다. 글은 이름을 "탈퇴한 회원"으로 바꿔 남깁니다.');
+      var yes = L.ask ? await L.ask({ title: '탈퇴를 요청하시겠습니까?', body: '관리자가 확인한 뒤 계정과 메일, 올린 사진 · 파일을 지웁니다. 쓴 글과 댓글은 이름과 함께 남습니다. 이름 삭제를 원하시면 관리자에게 알려 주십시오.', ok: '탈퇴 요청', danger: true })
+        : confirm('탈퇴를 요청하시겠습니까? 관리자가 확인한 뒤 계정과 메일, 올린 사진 · 파일을 지웁니다. 쓴 글과 댓글은 이름과 함께 남습니다. 이름 삭제를 원하시면 관리자에게 알려 주십시오.');
       if (!yes) return;
       busy(wbtn, true);
       try { await api.requestWithdraw(); busy(wbtn, false, true); wbtn.disabled = true; wbtn.textContent = '탈퇴 요청함'; L.toast('탈퇴 요청을 받았습니다.', { kind: 'ok' }); }

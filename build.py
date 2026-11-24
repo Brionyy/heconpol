@@ -1058,7 +1058,8 @@ def build_pages(site):
     for pr in projects:
         by_year.setdefault(pr["연도"], []).append(pr)
     open_years = setting_int(site.cfg, "수행연구 펼칠 햇수", 5)
-    groups = [f'<p class="muted list-note">{esc(site.cfg.get("수행연구 안내", ""))}</p>']
+    note = site.cfg.get("수행연구 안내", "").strip()
+    groups = [f'<p class="muted list-note">{esc(note)}</p>'] if note else []
     for i, year in enumerate(sorted(by_year, reverse=True)):
         items = f'<ul class="rows proj">{"".join(project_li(pr) for pr in by_year[year])}</ul>'
         count = f"{len(by_year[year])}건"

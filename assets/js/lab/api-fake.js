@@ -96,11 +96,11 @@
         d.posts.forEach(function (p, i) {
           var id = OLD_ID + i + 1;
           o.posts.push({ id: id, board: p.board, title: p.title || '(제목 없음)', body_md: p.body_md || '', body_html_legacy: p.body_html_legacy || null,
-            author_id: uid(p.author_legacy), created_at: p.created_at, updated_at: p.updated_at || p.created_at, hidden: !!p.hidden,
+            author_id: uid(p.author_legacy), author_name: p.author_name || null, created_at: p.created_at, updated_at: p.updated_at || p.created_at, hidden: !!p.hidden,
             tags: p.tags || [], visibility: p.visibility === 'admins' ? 'admins' : 'members', pinned: !!p.pinned,
             cover_path: p.cover_path || null, allow_comments: true, old: true });
           (p.comments || []).forEach(function (c) {
-            o.comments.push({ id: ++cid, post_id: id, author_id: uid(c.author_legacy), body: c.body, created_at: c.created_at, hidden: false, old: true });
+            o.comments.push({ id: ++cid, post_id: id, author_id: uid(c.author_legacy), author_name: c.author_name || null, body: c.body, created_at: c.created_at, hidden: false, old: true });
           });
           (p.attachments || []).forEach(function (a) {
             o.attachments.push({ id: ++aid, post_id: id, owner_id: uid(p.author_legacy), bucket: a.bucket, path: a.path,
@@ -184,9 +184,12 @@
   function publicUser(u) {
     return { id: u.id, username: u.username, display_name: u.display_name, role: u.role, status: u.status, kind: u.kind };
   }
-  function nameOf(s, id) {
-    var u = s.users.filter(function (x) { return x.id === id; })[0];
-    return u ? (u.status === 'withdrawn' ? '탈퇴한 회원' : u.display_name) : '탈퇴한 회원';
+  // 이름 차례(서버와 같음): 계정 이름 → 쓸 때 남긴 이름(saved: 옛 글) → '탈퇴한 회원'.
+  // 탈퇴해도 이름은 남고, 탈퇴 처리 때 '이름도 지움'을 고른 회원(name_removed)만 '탈퇴한 회원'.
+  function nameOf(s, id, saved) {
+    var u = id && s.users.filter(function (x) { return x.id === id; })[0];
+    if (u) return u.name_removed ? '탈퇴한 회원' : u.display_name;
+    return saved || '탈퇴한 회원';
   }
   function needMember(s) {
     var u = me(s);
@@ -450,11 +453,11 @@
       var qq = String(q || '').trim().toLowerCase();
       // 서버의 글 목록 모아 보기(post_list)처럼 올린 글만. 첨부 수는 자료만, 그림 수는 따로.
       var all = s.posts.filter(function (p) { return p.board === board && !isDraft(p) && visiblePost(s, u, p) && (!tag || (p.tags || []).indexOf(tag) !== -1)
-          && (!qq || (p.title + ' ' + nameOf(s, p.author_id)).toLowerCase().indexOf(qq) !== -1); })
+          && (!qq || (p.title + ' ' + nameOf(s, p.author_id, p.author_name)).toLowerCase().indexOf(qq) !== -1); })
         .sort(function (a, b) { return (!!b.pinned - !!a.pinned) || b.created_at.localeCompare(a.created_at); });
       var size = 20, pg = Math.max(1, page || 1);
       var items = all.slice((pg - 1) * size, pg * size).map(function (p) {
-        return { id: p.id, title: p.title, author_name: nameOf(s, p.author_id), created_at: p.created_at, hidden: p.hidden,
+        return { id: p.id, title: p.title, author_name: nameOf(s, p.author_id, p.author_name), created_at: p.created_at, hidden: p.hidden,
           comment_count: s.comments.filter(function (c) { return c.post_id === p.id && !c.hidden; }).length,
           file_count: s.attachments.filter(function (a) { return a.post_id === p.id && a.bucket === 'files'; }).length,
           image_count: s.attachments.filter(function (a) { return a.post_id === p.id && a.bucket === 'gallery'; }).length,
@@ -474,14 +477,14 @@
         .map(function (user) { return [user.id, user.avatar_id]; }));
       return delay({
         post: { id: p.id, board: p.board, title: p.title, body_md: p.body_md, body_html_legacy: p.body_html_legacy || null,
-          author_id: p.author_id, author_name: nameOf(s, p.author_id), created_at: p.created_at, updated_at: p.updated_at, hidden: p.hidden,
+          author_id: p.author_id, author_name: nameOf(s, p.author_id, p.author_name), created_at: p.created_at, updated_at: p.updated_at, hidden: p.hidden,
           status: isDraft(p) ? 'draft' : 'published',
           tags: settingsOf(p).tags, cover_path: settingsOf(p).cover_path, visibility: settingsOf(p).visibility,
           allow_comments: settingsOf(p).allow_comments, pinned: settingsOf(p).pinned,
           can_comment: !isDraft(p) && (settingsOf(p).allow_comments || u.role === 'admin'),
           can_edit: !p.old && p.author_id === u.id, can_delete: !p.old && (p.author_id === u.id || u.role === 'admin'), can_hide: !p.old && u.role === 'admin' && !isDraft(p) },
         comments: s.comments.filter(function (c) { return c.post_id === p.id && (!c.hidden || u.role === 'admin'); }).map(function (c) {
-          return { id: c.id, body: c.body, avatar_id: avatarIds.get(c.author_id), author_name: nameOf(s, c.author_id), created_at: c.created_at, can_edit: !c.old && c.author_id === u.id, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
+          return { id: c.id, body: c.body, avatar_id: avatarIds.get(c.author_id), author_name: nameOf(s, c.author_id, c.author_name), created_at: c.created_at, can_edit: !c.old && c.author_id === u.id, can_delete: !c.old && (c.author_id === u.id || u.role === 'admin') };
         }),
         attachments: s.attachments.filter(function (a) { return a.post_id === p.id; }).map(function (a) {
           return { id: a.id, bucket: a.bucket, path: a.path, original_name: a.original_name, mime: a.mime, size_bytes: a.size_bytes };
@@ -652,7 +655,7 @@
           if (!isGal && !pics.length) return;
           var c = coverOf(s, p);
           var cover = (c && pics.filter(function (a) { return a.path === c; })[0]) || pics[0] || null;
-          out.push({ id: p.id, board: p.board, title: p.title, created_at: p.created_at, author_name: nameOf(s, p.author_id), cover: cover, count: pics.length });
+          out.push({ id: p.id, board: p.board, title: p.title, created_at: p.created_at, author_name: nameOf(s, p.author_id, p.author_name), cover: cover, count: pics.length });
         });
       return delay(out);
     },
@@ -995,8 +998,9 @@
       save(s);
       return delay(true);
     },
-    // 탈퇴 처리(서버: admin-account 도우미가 파일 칸에서 먼저 지운 뒤 admin_remove_user). 글은 '탈퇴한 회원'으로 남는다
-    withdrawDone: async function (id) {
+    // 탈퇴 처리(서버: admin-account 도우미가 파일 칸에서 먼저 지운 뒤 admin_remove_user). 글 · 댓글은 글쓴이 이름과 함께 남고,
+    // keepName === false(본인이 이름 삭제를 원함)면 '탈퇴한 회원'으로 보인다
+    withdrawDone: async function (id, keepName) {
       var s = load(); var a = needAdmin(s);
       var u = userBy(s, id);
       if (!u || s.withdraw.indexOf(id) === -1) throw err('탈퇴 요청이 없습니다.');
@@ -1009,7 +1013,8 @@
       for (var j = 0; j < reqs.length; j++) if (reqs[j].photo_key) await delBlob(reqs[j].photo_key);
       s.requests = (s.requests || []).filter(function (x) { return x.user_id !== u.id; });
       s.withdraw = s.withdraw.filter(function (x) { return x !== id; });
-      log(s, a, '회원 지움(탈퇴)', 'user:' + u.username);
+      log(s, a, '회원 지움(탈퇴)', 'user:' + u.username, keepName === false ? '글쓴이 이름도 지움' : '글쓴이 이름 남김');
+      if (keepName === false) u.name_removed = true;
       u.status = 'withdrawn'; u.email = null; u.password = null; u.person_no = null; u.cv_url = null; u.role = 'member';
       save(s);
       return delay(true);
