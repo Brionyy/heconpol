@@ -115,18 +115,32 @@
     if (!ok.ok) throw window.Lab.userError(ok.error);
     return createImageBitmap(file, { imageOrientation: 'from-image' });
   }
-  function drawRegion(bmp, rg) {
+  // 2026-11-24 틀과 결과가 어긋나던 것(연구자: "지금 고치는거랑 실제 반영되는게 왜 다른거야"): 디코딩한 사진을 먼저
+  // 보통 그림판(canvas)에 통째로 한 번 그린 뒤, 화면 · 틀 · 잘라 내기를 모두 그 그림판 하나에서 한다.
+  // 사진 파일(ImageBitmap)에서 바로 일부를 잘라 그리면 브라우저에 따라 회전 정보 · 크기 계산이 화면과 달라질 수 있어서다.
+  // 긴 변은 3000px 까지(휴대폰 그림판 크기 한도 안, 틀을 작게 줄여도 480 × 600 을 채우기 충분).
+  var FLAT_LONG = 3000;
+  function flatten(bmp) {
+    var k = Math.min(1, FLAT_LONG / Math.max(bmp.width, bmp.height));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+    var g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);   // 투명한 PNG 는 흰 바탕으로
+    g.drawImage(bmp, 0, 0, c.width, c.height);
+    if (bmp.close) bmp.close();
+    return c;
+  }
+  function drawRegion(src, rg) {
     var canvas = document.createElement('canvas');
     canvas.width = OUT_W; canvas.height = OUT_H;
     var g = canvas.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, OUT_W, OUT_H);
-    g.drawImage(bmp, rg.sx, rg.sy, rg.sw, rg.sh, 0, 0, OUT_W, OUT_H);
+    g.drawImage(src, rg.sx, rg.sy, rg.sw, rg.sh, 0, 0, OUT_W, OUT_H);
     return canvasToBlob(canvas, 0.85);
   }
   async function portrait(file) {
-    var bmp = await decodePhoto(file);
-    try { return await drawRegion(bmp, autoRegion(bmp.width, bmp.height)); }
-    finally { if (bmp.close) bmp.close(); }
+    var src = flatten(await decodePhoto(file));
+    return drawRegion(src, autoRegion(src.width, src.height));
   }
 
   // 남길 자리 고르기(2026-11-23 연구자 선택 C '펼친 사진 위 틀 옮기기'): 고른 사진 전체를 펼치고 그 위 4:5 금색 틀을
@@ -134,8 +148,8 @@
   // 돌려주는 것: { el, blob(): 지금 틀 자리의 480 × 600 JPEG, destroy() }
   async function portraitPicker(file, opts) {
     opts = opts || {};
-    var bmp = await decodePhoto(file);
-    var W = bmp.width, H = bmp.height, R = autoRegion(W, H), first = autoRegion(W, H);
+    var src = flatten(await decodePhoto(file));
+    var W = src.width, H = src.height, R = autoRegion(W, H), first = autoRegion(W, H);
     var maxW = Math.min(W, H * OUT_W / OUT_H), minW = Math.min(maxW, Math.max(80, maxW * 0.15));
     function mk(tag, cls, attrs) {
       var e = document.createElement(tag); if (cls) e.className = cls;
@@ -145,10 +159,12 @@
     var k0 = Math.min(1, 1000 / Math.max(W, H));   // 화면용은 긴 변 1000px 로 줄여 그림
     var view = mk('canvas', 'crop-img', { 'aria-hidden': 'true' });
     view.width = Math.max(1, Math.round(W * k0)); view.height = Math.max(1, Math.round(H * k0));
-    view.getContext('2d').drawImage(bmp, 0, 0, view.width, view.height);
+    view.getContext('2d').drawImage(src, 0, 0, view.width, view.height);
     var rect = mk('div', 'crop-rect', { tabindex: '0', role: 'group', 'aria-label': '남길 자리 틀. 화살표로 옮기고 더하기 · 빼기로 크기를 바꿉니다' });
     ['tl', 'tr', 'bl', 'br'].forEach(function (c) { rect.appendChild(mk('span', 'crop-h is-' + c, { 'data-h': c, 'aria-hidden': 'true' })); });
+    // 사진 칸을 사진 비율 그대로 만든다. 칸이 사진보다 커져 회색 띠가 생기면 틀(칸 기준 %)이 실제 자리보다 작게 보이던 것을 막음
     var stage = mk('div', 'crop-stage');
+    stage.style.aspectRatio = W + ' / ' + H;
     stage.appendChild(view); stage.appendChild(rect);
     var reset = mk('button', 'btn-text crop-reset', { type: 'button' }); reset.textContent = '처음 자리로';
     var hint = mk('p', 'crop-hint');
@@ -179,7 +195,7 @@
     });
     rect.addEventListener('pointermove', function (e) {
       if (!drag) return;
-      var k = stage.clientWidth / W, dx = (e.clientX - drag.x) / k, dy = (e.clientY - drag.y) / k, r0 = drag.r;
+      var dx = (e.clientX - drag.x) * W / Math.max(1, stage.clientWidth), dy = (e.clientY - drag.y) * H / Math.max(1, stage.clientHeight), r0 = drag.r;
       if (drag.mode === 'move') { R.sx = r0.sx + dx; R.sy = r0.sy + dy; }
       else {
         var gx = drag.mode.charAt(1) === 'l' ? -1 : 1, gy = drag.mode.charAt(0) === 't' ? -1 : 1;
@@ -207,8 +223,10 @@
     draw();
     return {
       el: wrap,
-      blob: function () { return drawRegion(bmp, { sx: R.sx, sy: R.sy, sw: R.sw, sh: R.sh }); },
-      destroy: function () { clearTimeout(timer); opts.onChange = null; if (bmp.close) bmp.close(); }
+      blob: function () { return drawRegion(src, { sx: R.sx, sy: R.sy, sw: R.sw, sh: R.sh }); },
+      // 지금 틀 자리(그림판 기준). 시험 · 점검용
+      region: function () { return { sx: R.sx, sy: R.sy, sw: R.sw, sh: R.sh, w: W, h: H }; },
+      destroy: function () { clearTimeout(timer); opts.onChange = null; src.width = src.height = 0; }
     };
   }
 

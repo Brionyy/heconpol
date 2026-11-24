@@ -1403,10 +1403,12 @@
       blobUrl = nextUrl;
       drawWant();
     }
+    // 틀을 빨리 여러 번 옮기면 그림이 늦게 끝난 앞 자리가 나중 자리를 덮을 수 있어, 마지막으로 부른 것만 미리 보기에 씀
+    var cropSeq = 0;
     function cropChanged() {
-      var pk = picker;
+      var pk = picker, seq = ++cropSeq;
       if (!pk || sending) return;
-      pk.blob().then(function (b) { if (pk === picker && !sending) setBlob(b); }).catch(function () {});
+      pk.blob().then(function (b) { if (pk === picker && seq === cropSeq && !sending) setBlob(b); }).catch(function () {});
     }
     async function takeFile(f) {
       if (!f || sending) return;

@@ -1235,7 +1235,7 @@
       var pmsg = h('span', { class: 'field-err' });
       var rm = h('button', { type: 'button', class: 'btn btn-small btn-ghost', hidden: !photoUrl }, '사진 빼기');
       // 11-23 연구자 선택 C: 올린 사진 전체 위에서 4:5 금색 틀을 옮겨 남길 자리를 정한다(내 정보 사진 요청과 같은 부품)
-      var cropSlot = h('div', { class: 'crop-slot' }), pickVer = 0;
+      var cropSlot = h('div', { class: 'crop-slot' }), pickVer = 0, cropSeq = 0;
       var setPhoto = function (b) {
         if (photoUrl && photoUrl.indexOf('blob:') === 0) URL.revokeObjectURL(photoUrl);
         photoBlob = b; photoUrl = URL.createObjectURL(b); redraw();
@@ -1246,7 +1246,8 @@
         var ver = ++pickVer;
         try {
           var pk = await window.LabUpload.portraitPicker(pin.files[0], { onChange: function () {
-            if (pk === picker) pk.blob().then(function (b) { if (pk === picker) setPhoto(b); }).catch(function () {});
+            var seq = ++cropSeq;   // 마지막으로 옮긴 자리만 미리 보기에 씀(늦게 끝난 앞 자리가 덮지 않게)
+            if (pk === picker) pk.blob().then(function (b) { if (pk === picker && seq === cropSeq) setPhoto(b); }).catch(function () {});
           } });
           var b = await pk.blob();
           if (ver !== pickVer) { pk.destroy(); return; }

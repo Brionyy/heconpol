@@ -2958,8 +2958,8 @@ html .btn[disabled],
 
 /* 사진 남길 자리 고르기(2026-11-23 연구자 선택 C '펼친 사진 위 틀 옮기기'): 내 정보 사진 요청 · 관리 화면 사진 고치기가 같이 씀 */
 .crop { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); max-width: 420px; }
-.crop-stage { position: relative; overflow: hidden; line-height: 0; user-select: none; -webkit-user-select: none; background: var(--tint); }
-.crop-img { display: block; width: 100%; height: auto; }
+.crop-stage { position: relative; width: 100%; overflow: hidden; line-height: 0; user-select: none; -webkit-user-select: none; background: var(--tint); }
+.crop-img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }   /* 칸(사진 비율)을 꽉 채움: 칸 = 사진 */
 .crop-rect { position: absolute; border: 2px solid var(--gold); box-shadow: 0 0 0 9999px rgba(var(--shade), .55); cursor: move; touch-action: none; }
 .crop-rect::before, .crop-rect::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
 .crop-rect::before { left: 33.333%; right: 33.333%; border-left: 1px solid rgba(255, 255, 255, .4); border-right: 1px solid rgba(255, 255, 255, .4); }
